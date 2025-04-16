@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mdlib - Markdown Note-Taking</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.3/dist/purify.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen flex flex-col">
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <h1 class="text-xl font-bold">mdlib</h1>
+                <span class="ml-2 text-indigo-200">Markdown Note-Taking</span>
+            </div>
+            <div class="flex items-center">
+                <div class="relative mr-4">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        placeholder="Search notes..." 
+                        class="rounded px-3 py-1 text-gray-800 text-sm w-40 focus:w-64 transition-all duration-300 focus:outline-none"
+                    >
+                </div>
+                <button id="toggle-dark-mode" class="mr-4 text-white hover:text-indigo-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+                <button id="btn-new-note" class="bg-white text-indigo-600 px-3 py-1 rounded text-sm font-medium hover:bg-indigo-100 transition-colors duration-200">
+                    New Note
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex">
+        <!-- Sidebar - File Browser -->
+        <aside id="sidebar" class="w-64 bg-white shadow-md overflow-auto">
+            <div class="p-4">
+                <h2 class="text-lg font-semibold mb-2 text-gray-700">Notes</h2>
+                <ul id="file-list" class="space-y-1">
+                    <!-- Files will be populated here -->
+                    <li class="text-gray-500 text-sm italic">Loading files...</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="flex-grow flex flex-col">
+            <!-- Toolbar -->
+            <div id="toolbar" class="bg-white border-b border-gray-200 p-2 flex items-center">
+                <div id="editor-toolbar" class="hidden">
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="bold" title="Bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 12h8m-4-4v8" />
+                        </svg>
+                    </button>
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="italic" title="Italic">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4" />
+                        </svg>
+                    </button>
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="heading" title="Heading">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="link" title="Link">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.172 10.172a4 4 0 005.656 0l4-4a4 4 0 10-5.656-5.656l-1.102 1.101" />
+                        </svg>
+                    </button>
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="image" title="Image">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12a2 2 0 100-4 2 2 0 000 4z" />
+                        </svg>
+                    </button>
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="list" title="List">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <button class="p-1 mr-1 rounded hover:bg-gray-200" data-format="code" title="Code">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="ml-auto flex">
+                    <button id="btn-toggle-mode" class="px-3 py-1 rounded text-sm font-medium bg-gray-200 hover:bg-gray-300 transition-colors duration-200">
+                        Preview Mode
+                    </button>
+                    <button id="btn-save" class="ml-2 px-3 py-1 rounded text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors duration-200">
+                        Save
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="content" class="flex-grow flex">
+                <!-- Editor Pane -->
+                <div id="editor-pane" class="flex-1 overflow-auto p-4">
+                    <textarea id="editor" class="w-full h-full p-4 border border-gray-300 rounded font-mono text-sm focus:outline-none focus:border-indigo-500" placeholder="Start writing your markdown here..."></textarea>
+                </div>
+
+                <!-- Preview Pane -->
+                <div id="preview-pane" class="flex-1 overflow-auto bg-white p-6 border-l border-gray-200 hidden">
+                    <div id="preview" class="markdown-body"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for new note -->
+    <div id="new-note-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+            <h2 class="text-xl font-bold mb-4">Create New Note</h2>
+            <div class="mb-4">
+                <label for="new-note-name" class="block text-sm font-medium text-gray-700 mb-1">Note Name</label>
+                <input type="text" id="new-note-name" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter note name">
+            </div>
+            <div class="flex justify-end">
+                <button id="btn-modal-cancel" class="px-4 py-2 mr-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none">
+                    Cancel
+                </button>
+                <button id="btn-modal-create" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none">
+                    Create
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 

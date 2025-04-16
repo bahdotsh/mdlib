@@ -1,0 +1,25 @@
+[package]
+name = "mdlib"
+version = "0.1.0"
+edition = "2021"
+description = "A beautiful markdown note-taking application"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1.28", features = ["full"] }
+axum = "0.6.18"
+tower = "0.4.13"
+tower-http = { version = "0.4.0", features = ["fs", "trace", "cors"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+notify = "5.1.0"
+comrak = "0.18.0"  # Markdown parser
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4.3", features = ["derive"] }
+walkdir = "2.3.3"
+config = "0.13.3"
+dirs = "5.0"

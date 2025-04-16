@@ -1,0 +1,17 @@
+# Generated files
+/target/
+
+# The cargo lock file
+Cargo.lock
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Config files
+.env
+
+# Debug logs
+*.log
