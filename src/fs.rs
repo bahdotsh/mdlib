@@ -40,10 +40,9 @@ pub fn list_markdown_files(dir: &Path) -> Result<Vec<MarkdownFile>> {
             let metadata = fs::metadata(path).context("Failed to read file metadata")?;
             let modified = metadata.modified()
                 .ok()
-                .map(|time| time.duration_since(std::time::UNIX_EPOCH)
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH)
                     .ok()
-                    .map(|d| d.as_secs()))
-                .flatten();
+                    .map(|d| d.as_secs()));
             
             // Extract category from the path (relative to base dir)
             let category = get_category_from_path(dir, path);
@@ -68,10 +67,9 @@ pub fn list_markdown_files(dir: &Path) -> Result<Vec<MarkdownFile>> {
                 let metadata = fs::metadata(path).context("Failed to read file metadata")?;
                 let modified = metadata.modified()
                     .ok()
-                    .map(|time| time.duration_since(std::time::UNIX_EPOCH)
+                    .and_then(|time| time.duration_since(std::time::UNIX_EPOCH)
                         .ok()
-                        .map(|d| d.as_secs()))
-                    .flatten();
+                        .map(|d| d.as_secs()));
                 
                 let name = path.file_name()
                     .and_then(|n| n.to_str())
@@ -178,9 +176,9 @@ pub fn extract_tags_from_content(content: &str) -> Result<Vec<String>> {
         // Look for a tags: line in the frontmatter
         for line in frontmatter.lines() {
             let line = line.trim();
-            if line.starts_with("tags:") {
+            if let Some(stripped) = line.strip_prefix("tags:") {
                 // Parse the tags list
-                let tags_part = line["tags:".len()..].trim();
+                let tags_part = stripped.trim();
                 if tags_part.starts_with('[') && tags_part.ends_with(']') {
                     // Format: tags: [tag1, tag2, tag3]
                     let tags_list = &tags_part[1..tags_part.len()-1];
@@ -214,9 +212,9 @@ pub fn extract_tags_from_content(content: &str) -> Result<Vec<String>> {
 /// Extract YAML frontmatter from markdown content if present
 fn extract_frontmatter(content: &str) -> Option<String> {
     let trimmed = content.trim_start();
-    if trimmed.starts_with("---") {
-        if let Some(end_index) = trimmed[3..].find("---") {
-            return Some(trimmed[3..end_index+3].to_string());
+    if let Some(stripped) = trimmed.strip_prefix("---") {
+        if let Some(end_index) = stripped.find("---") {
+            return Some(stripped[..end_index].trim().to_string());
         }
     }
     None

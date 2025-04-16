@@ -184,7 +184,7 @@ async fn get_file(
     
     // If the direct path doesn't work, the file might be in a category folder
     // First, try to handle it as a path with slashes or backslashes
-    let path_parts: Vec<&str> = filename.split(|c| c == '/' || c == '\\').collect();
+    let path_parts: Vec<&str> = filename.split(['/', '\\']).collect();
     if path_parts.len() > 1 {
         let combined_path = state.base_dir.join(&filename);
         if combined_path.is_file() {
@@ -290,8 +290,8 @@ fn extract_category_from_content(content: &str) -> Option<String> {
     if let Some(frontmatter) = extract_frontmatter(content) {
         for line in frontmatter.lines() {
             let line = line.trim();
-            if line.starts_with("category:") {
-                return Some(line["category:".len()..].trim().to_string());
+            if let Some(stripped) = line.strip_prefix("category:") {
+                return Some(stripped.trim().to_string());
             }
         }
     }
@@ -301,9 +301,9 @@ fn extract_category_from_content(content: &str) -> Option<String> {
 // Extract YAML frontmatter from markdown content if present
 fn extract_frontmatter(content: &str) -> Option<String> {
     let trimmed = content.trim_start();
-    if trimmed.starts_with("---") {
-        if let Some(end_index) = trimmed[3..].find("---") {
-            return Some(trimmed[3..end_index+3].trim().to_string());
+    if let Some(stripped) = trimmed.strip_prefix("---") {
+        if let Some(end_index) = stripped.find("---") {
+            return Some(stripped[..end_index].trim().to_string());
         }
     }
     None
@@ -325,7 +325,7 @@ async fn update_file(
             .map(|name| name.to_lowercase().starts_with("readme"))
             .unwrap_or(false);
             
-        if is_readme || direct_path.extension().map_or(false, |ext| ext == "md") {
+        if is_readme || direct_path.extension().is_some_and(|ext| ext == "md") {
             return match fs::write_markdown_file(&direct_path, &request.content) {
                 Ok(_) => ApiResult::Success(StatusCode::OK, "File updated".to_string()),
                 Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
@@ -335,12 +335,12 @@ async fn update_file(
     
     // If direct path doesn't work, the file might be in a category folder
     // Try to handle it as a path with slashes or backslashes
-    let path_parts: Vec<&str> = filename.split(|c| c == '/' || c == '\\').collect();
+    let path_parts: Vec<&str> = filename.split(['/', '\\']).collect();
     if path_parts.len() > 1 {
         let combined_path = state.base_dir.join(&filename);
         if combined_path.is_file() {
             // Verify it's a markdown file
-            if combined_path.extension().map_or(false, |ext| ext == "md") {
+            if combined_path.extension().is_some_and(|ext| ext == "md") {
                 return match fs::write_markdown_file(&combined_path, &request.content) {
                     Ok(_) => ApiResult::Success(StatusCode::OK, "File updated".to_string()),
                     Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
@@ -394,7 +394,7 @@ async fn delete_file(
             .map(|name| name.to_lowercase().starts_with("readme"))
             .unwrap_or(false);
             
-        if is_readme || direct_path.extension().map_or(false, |ext| ext == "md") {
+        if is_readme || direct_path.extension().is_some_and(|ext| ext == "md") {
             return match fs::delete_markdown_file(&direct_path) {
                 Ok(_) => ApiResult::Success(StatusCode::OK, "File deleted".to_string()),
                 Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
@@ -403,12 +403,12 @@ async fn delete_file(
     }
     
     // If direct path doesn't work, try handling it as a path with slashes or backslashes
-    let path_parts: Vec<&str> = filename.split(|c| c == '/' || c == '\\').collect();
+    let path_parts: Vec<&str> = filename.split(['/', '\\']).collect();
     if path_parts.len() > 1 {
         let combined_path = state.base_dir.join(&filename);
         if combined_path.is_file() {
             // Verify it's a markdown file
-            if combined_path.extension().map_or(false, |ext| ext == "md") {
+            if combined_path.extension().is_some_and(|ext| ext == "md") {
                 return match fs::delete_markdown_file(&combined_path) {
                     Ok(_) => ApiResult::Success(StatusCode::OK, "File deleted".to_string()),
                     Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
@@ -521,7 +521,7 @@ async fn add_tags(
             .map(|name| name.to_lowercase().starts_with("readme"))
             .unwrap_or(false);
             
-        if is_readme || direct_path.extension().map_or(false, |ext| ext == "md") {
+        if is_readme || direct_path.extension().is_some_and(|ext| ext == "md") {
             return match fs::add_tags_to_file(&direct_path, &request.tags) {
                 Ok(_) => ApiResult::Success(StatusCode::OK, "Tags added".to_string()),
                 Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
@@ -530,12 +530,12 @@ async fn add_tags(
     }
     
     // If direct path doesn't work, try handling it as a path with slashes or backslashes
-    let path_parts: Vec<&str> = filename.split(|c| c == '/' || c == '\\').collect();
+    let path_parts: Vec<&str> = filename.split(['/', '\\']).collect();
     if path_parts.len() > 1 {
         let combined_path = state.base_dir.join(&filename);
         if combined_path.is_file() {
             // Verify it's a markdown file
-            if combined_path.extension().map_or(false, |ext| ext == "md") {
+            if combined_path.extension().is_some_and(|ext| ext == "md") {
                 return match fs::add_tags_to_file(&combined_path, &request.tags) {
                     Ok(_) => ApiResult::Success(StatusCode::OK, "Tags added".to_string()),
                     Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
