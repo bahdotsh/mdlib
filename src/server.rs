@@ -102,14 +102,19 @@ struct AppState {
 }
 
 /// Start the web server
-pub async fn start_server(base_dir: PathBuf) -> Result<()> {
+pub async fn start_server(base_dir: PathBuf, custom_config_path: Option<PathBuf>) -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
     
     // Load configuration
-    let config_path = dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("mdlib/config.json");
+    let config_path = match custom_config_path {
+        Some(path) => path,
+        None => dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("mdlib/config.json")
+    };
+    
+    println!("📝 Using config file: {:?}", config_path);
     
     let config = AppConfig::load_or_default(&config_path)
         .context("Failed to load configuration")?;

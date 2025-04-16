@@ -3,7 +3,11 @@ name = "mdlib"
 version = "0.1.0"
 edition = "2021"
 description = "A beautiful markdown note-taking application"
-authors = ["Your Name <your.email@example.com>"]
+documentation = "https://github.com/bahdotsh/mdlib"
+homepage = "https://github.com/bahdotsh/mdlib"
+repository = "https://github.com/bahdotsh/mdlib"
+keywords = ["markdown", "wiki", "notes", "knowledge-base", "web-app"]
+categories = ["text-processing", "web-programming", "filesystem", "gui", "visualization"]
 license = "MIT"
 
 [dependencies]
