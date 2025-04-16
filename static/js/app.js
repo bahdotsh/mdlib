@@ -10,9 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const preview = document.getElementById('preview');
     const editorPane = document.getElementById('editor-pane');
     const previewPane = document.getElementById('preview-pane');
-    const btnToggleMode = document.getElementById('btn-toggle-mode');
     const btnSave = document.getElementById('btn-save');
     const btnNewNote = document.getElementById('btn-new-note');
+    const btnEmptyNewNote = document.getElementById('btn-empty-new-note');
+    const btnEdit = document.getElementById('btn-edit');
+    const btnSplitView = document.getElementById('btn-split-view');
+    const btnPreviewOnly = document.getElementById('btn-preview-only');
     const newNoteModal = document.getElementById('new-note-modal');
     const newNoteName = document.getElementById('new-note-name');
     const btnModalCreate = document.getElementById('btn-modal-create');
@@ -21,11 +24,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleDarkMode = document.getElementById('toggle-dark-mode');
     const editorToolbar = document.getElementById('editor-toolbar');
     const toolbarButtons = document.querySelectorAll('[data-format]');
+    const emptyState = document.getElementById('empty-state');
+    const contentContainer = document.getElementById('content-container');
+    const currentFilename = document.getElementById('current-filename');
 
     // State
     let currentFile = null;
-    let isEditing = true;
-    let isPreviewVisible = false;
+    let isEditing = false;
+    let viewMode = 'preview'; // 'preview', 'edit', or 'split'
     let isDarkMode = localStorage.getItem('darkMode') === 'true';
     let autoSaveTimeout = null;
     
@@ -34,6 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialization
     function init() {
+        // Ensure highlight.js is loaded
+        if (typeof hljs === 'undefined') {
+            console.error('highlight.js is not loaded. Syntax highlighting will not work.');
+        }
+        
         // Load files
         loadFiles();
         
@@ -56,36 +67,46 @@ document.addEventListener('DOMContentLoaded', () => {
             gfm: true,
             headerIds: true,
             highlight: function(code, lang) {
-                if (hljs.getLanguage(lang)) {
-                    return hljs.highlight(code, { language: lang }).value;
+                if (typeof hljs === 'undefined') {
+                    return code; // Fallback if highlight.js isn't loaded
                 }
-                return hljs.highlightAuto(code).value;
+                
+                try {
+                    if (lang && hljs.getLanguage(lang)) {
+                        return hljs.highlight(code, { language: lang }).value;
+                    }
+                    return hljs.highlightAuto(code).value;
+                } catch (e) {
+                    console.error('Error highlighting code:', e);
+                    return code; // Return original code on error
+                }
             }
         });
     }
 
     // Set up event listeners
     function setupEventListeners() {
-        // Toggle between edit and preview modes
-        btnToggleMode.addEventListener('click', togglePreviewMode);
+        // New note buttons
+        btnNewNote.addEventListener('click', showNewNoteModal);
+        btnEmptyNewNote.addEventListener('click', showNewNoteModal);
+        
+        // Edit button - switch to edit mode
+        btnEdit.addEventListener('click', () => setViewMode('edit'));
+        
+        // Split view button - show both editor and preview
+        btnSplitView.addEventListener('click', () => setViewMode('split'));
+        
+        // Preview only button - switch back to preview mode
+        btnPreviewOnly.addEventListener('click', () => setViewMode('preview'));
         
         // Save the current file
         btnSave.addEventListener('click', saveCurrentFile);
-        
-        // Show modal for creating a new note
-        btnNewNote.addEventListener('click', () => {
-            newNoteModal.classList.remove('hidden');
-            newNoteName.focus();
-        });
         
         // Create a new note from the modal
         btnModalCreate.addEventListener('click', createNewNote);
         
         // Cancel creating a new note
-        btnModalCancel.addEventListener('click', () => {
-            newNoteModal.classList.add('hidden');
-            newNoteName.value = '';
-        });
+        btnModalCancel.addEventListener('click', hideNewNoteModal);
         
         // Search functionality
         searchInput.addEventListener('input', debounce(searchFiles, 300));
@@ -120,11 +141,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 createNewNote();
             }
         });
+        
+        // Escape key to exit modals
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && !newNoteModal.classList.contains('hidden')) {
+                hideNewNoteModal();
+            }
+        });
+    }
+
+    // Show new note modal
+    function showNewNoteModal() {
+        newNoteModal.classList.remove('hidden');
+        newNoteName.focus();
+    }
+    
+    // Hide new note modal
+    function hideNewNoteModal() {
+        newNoteModal.classList.add('hidden');
+        newNoteName.value = '';
+    }
+
+    // Set the view mode (preview, edit, or split)
+    function setViewMode(mode) {
+        viewMode = mode;
+        isEditing = mode === 'edit' || mode === 'split';
+        
+        // Update UI based on view mode
+        if (mode === 'preview') {
+            editorPane.classList.add('hidden');
+            previewPane.classList.remove('hidden');
+            editorToolbar.classList.add('hidden');
+            btnEdit.classList.remove('hidden');
+            btnSplitView.classList.remove('hidden');
+            btnPreviewOnly.classList.add('hidden');
+            btnSave.classList.add('hidden');
+            document.getElementById('content').classList.remove('split-view');
+        } else if (mode === 'edit') {
+            editorPane.classList.remove('hidden');
+            previewPane.classList.add('hidden');
+            editorToolbar.classList.remove('hidden');
+            btnEdit.classList.add('hidden');
+            btnSplitView.classList.remove('hidden');
+            btnPreviewOnly.classList.remove('hidden');
+            btnSave.classList.remove('hidden');
+            document.getElementById('content').classList.remove('split-view');
+        } else if (mode === 'split') {
+            editorPane.classList.remove('hidden');
+            previewPane.classList.remove('hidden');
+            editorToolbar.classList.remove('hidden');
+            btnEdit.classList.remove('hidden');
+            btnSplitView.classList.add('hidden');
+            btnPreviewOnly.classList.remove('hidden');
+            btnSave.classList.remove('hidden');
+            document.getElementById('content').classList.add('split-view');
+            updatePreview();
+        }
     }
 
     // Load all markdown files
     function loadFiles() {
-        fileList.innerHTML = '<li class="loading text-gray-500 text-sm italic">Loading files...</li>';
+        fileList.innerHTML = `
+            <li class="loading text-gray-500 text-sm italic flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading notes...
+            </li>
+        `;
         
         fetch('/api/files')
             .then(response => response.json())
@@ -173,6 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Update current file
                     currentFile = getFilename(path);
                     
+                    // Display the filename
+                    currentFilename.textContent = currentFile;
+                    
                     // Update active file in the list
                     const fileItems = fileList.querySelectorAll('li');
                     fileItems.forEach(item => {
@@ -182,8 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
                     
-                    // Show the editor toolbar when a file is loaded
-                    editorToolbar.classList.remove('hidden');
+                    // Show content container, hide empty state
+                    emptyState.classList.add('hidden');
+                    contentContainer.classList.remove('hidden');
+                    
+                    // Set to preview mode initially
+                    setViewMode('preview');
                     
                     // Add file name to document title
                     document.title = `${currentFile} - mdlib`;
@@ -205,29 +297,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Sanitize HTML to prevent XSS
-        const sanitizedHtml = DOMPurify.sanitize(marked.parse(editor.value));
-        preview.innerHTML = sanitizedHtml;
-        
-        // Apply syntax highlighting to code blocks
-        preview.querySelectorAll('pre code').forEach(block => {
-            hljs.highlightElement(block);
-        });
-    }
-
-    // Toggle between edit and preview modes
-    function togglePreviewMode() {
-        isPreviewVisible = !isPreviewVisible;
-        
-        if (isPreviewVisible) {
-            editorPane.classList.remove('hidden');
-            previewPane.classList.remove('hidden');
-            btnToggleMode.textContent = 'Edit Mode';
-            updatePreview();
-        } else {
-            editorPane.classList.remove('hidden');
-            previewPane.classList.add('hidden');
-            btnToggleMode.textContent = 'Preview Mode';
+        try {
+            // Sanitize HTML to prevent XSS
+            const sanitizedHtml = DOMPurify.sanitize(marked.parse(editor.value));
+            preview.innerHTML = sanitizedHtml;
+            
+            // Apply syntax highlighting to code blocks
+            if (typeof hljs !== 'undefined') {
+                preview.querySelectorAll('pre code').forEach(block => {
+                    hljs.highlightElement(block);
+                });
+            }
+        } catch (error) {
+            console.error('Error rendering markdown:', error);
+            preview.innerHTML = `<div class="text-red-500">Error rendering markdown: ${error.message}</div>`;
         }
     }
 
@@ -250,18 +333,23 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                // Show a save confirmation
-                const saveBtn = btnSave;
-                const originalText = saveBtn.textContent;
-                saveBtn.textContent = 'Saved!';
-                saveBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
-                saveBtn.classList.add('bg-green-700');
+                // Show success message
+                const saveBtn = document.getElementById('btn-save');
+                const originalText = saveBtn.innerHTML;
+                
+                saveBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Saved!
+                `;
                 
                 setTimeout(() => {
-                    saveBtn.textContent = originalText;
-                    saveBtn.classList.add('bg-green-500', 'hover:bg-green-600');
-                    saveBtn.classList.remove('bg-green-700');
-                }, 1500);
+                    saveBtn.innerHTML = originalText;
+                }, 2000);
+                
+                // Update preview
+                updatePreview();
             } else {
                 console.error('Error saving file:', data.message);
                 alert(`Error saving file: ${data.message}`);
@@ -280,10 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         autoSaveTimeout = setTimeout(() => {
-            if (currentFile) {
+            if (currentFile && isEditing) {
                 saveCurrentFile();
             }
-        }, 2000); // Auto-save after 2 seconds of inactivity
+        }, 5000); // Auto-save after 5 seconds of inactivity
     }
 
     // Create a new note
@@ -295,29 +383,34 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // Add .md extension if not present
         const fileName = name.endsWith('.md') ? name : `${name}.md`;
-        const content = '# ' + name + '\n\n';
         
         fetch('/api/files', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name: fileName, content })
+            body: JSON.stringify({
+                name: fileName,
+                content: '# ' + name + '\n\nStart writing your markdown here...'
+            })
         })
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                // Close modal and clear input
-                newNoteModal.classList.add('hidden');
-                newNoteName.value = '';
+                // Close the modal
+                hideNewNoteModal();
                 
-                // Reload file list and load the new file
+                // Refresh file list
                 loadFiles();
                 
-                // Set a timeout to allow the file list to update, then load the new file
+                // Load the new file
                 setTimeout(() => {
                     loadFile(data.data);
+                    
+                    // Switch to edit mode for new files
+                    setViewMode('split');
                 }, 300);
             } else {
                 console.error('Error creating file:', data.message);
@@ -330,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Search for files
+    // Search files
     function searchFiles() {
         const query = searchInput.value.trim();
         
@@ -345,100 +438,112 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.status === 'success') {
                     displayFiles(data.data);
                 } else {
-                    console.error('Error searching files:', data.message);
                     fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error searching files</li>';
+                    console.error('Error searching files:', data.message);
                 }
             })
             .catch(error => {
-                console.error('Error searching files:', error);
                 fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error searching files</li>';
+                console.error('Error searching files:', error);
             });
     }
 
-    // Apply formatting to selected text in the editor
+    // Apply formatting to the editor
     function applyFormat(format) {
+        if (!isEditing) return;
+        
         const start = editor.selectionStart;
         const end = editor.selectionEnd;
         const selectedText = editor.value.substring(start, end);
-        let formattedText = '';
+        let replacement = '';
         
         switch (format) {
             case 'bold':
-                formattedText = `**${selectedText}**`;
+                replacement = `**${selectedText}**`;
                 break;
             case 'italic':
-                formattedText = `*${selectedText}*`;
+                replacement = `*${selectedText}*`;
                 break;
             case 'heading':
-                formattedText = `## ${selectedText}`;
+                replacement = `# ${selectedText}`;
                 break;
             case 'link':
-                formattedText = `[${selectedText}](url)`;
+                replacement = `[${selectedText}](url)`;
                 break;
             case 'image':
-                formattedText = `![${selectedText}](image_url)`;
+                replacement = `![${selectedText}](image-url)`;
                 break;
             case 'list':
-                formattedText = selectedText.split('\n').map(line => `- ${line}`).join('\n');
+                replacement = selectedText
+                    .split('\n')
+                    .map(line => line.trim() ? `- ${line}` : line)
+                    .join('\n');
                 break;
             case 'code':
-                formattedText = '```\n' + selectedText + '\n```';
+                replacement = selectedText.includes('\n')
+                    ? '```\n' + selectedText + '\n```'
+                    : '`' + selectedText + '`';
                 break;
-            default:
-                formattedText = selectedText;
         }
         
+        editor.value = editor.value.substring(0, start) + replacement + editor.value.substring(end);
         editor.focus();
-        document.execCommand('insertText', false, formattedText);
+        
+        // Update preview
         updatePreview();
+        
+        // Schedule auto-save
         scheduleAutoSave();
     }
 
     // Handle keyboard shortcuts
     function handleKeyboardShortcuts(e) {
-        // Check if Ctrl/Cmd key is pressed
-        const isCtrlCmd = e.ctrlKey || e.metaKey;
+        // Only process if we're in edit mode
+        if (!isEditing) return;
         
-        if (isCtrlCmd) {
-            switch (e.key) {
-                case 's':
-                    e.preventDefault();
-                    saveCurrentFile();
-                    break;
-                case 'b':
-                    e.preventDefault();
-                    applyFormat('bold');
-                    break;
-                case 'i':
-                    e.preventDefault();
-                    applyFormat('italic');
-                    break;
-                case 'p':
-                    e.preventDefault();
-                    togglePreviewMode();
-                    break;
-                case 'n':
-                    e.preventDefault();
-                    btnNewNote.click();
-                    break;
+        // Cmd/Ctrl + S to save
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+            e.preventDefault();
+            saveCurrentFile();
+        }
+        
+        // Process other shortcuts only if we have a file open and the editor is focused
+        if (currentFile && document.activeElement === editor) {
+            // Cmd/Ctrl + B for bold
+            if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+                e.preventDefault();
+                applyFormat('bold');
+            }
+            
+            // Cmd/Ctrl + I for italic
+            if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+                e.preventDefault();
+                applyFormat('italic');
+            }
+            
+            // Cmd/Ctrl + K for link
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                applyFormat('link');
             }
         }
     }
 
-    // Helper: Get filename from path
+    // Extract filename from path
     function getFilename(path) {
-        const parts = path.split('/');
-        return parts[parts.length - 1];
+        return path.split('/').pop();
     }
 
-    // Helper: Debounce function for search
+    // Debounce function to limit how often a function is called
     function debounce(func, delay) {
-        let timeout;
         return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            
             clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                func.apply(this, args);
-            }, delay);
+            const timeout = setTimeout(later, delay);
         };
     }
 }); 

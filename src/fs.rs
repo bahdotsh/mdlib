@@ -29,7 +29,30 @@ pub fn list_markdown_files(dir: &Path) -> Result<Vec<MarkdownFile>> {
             continue;
         }
         
-        // Check if it's a markdown file
+        // Special case for README files
+        let file_name = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+            
+        if file_name.eq_ignore_ascii_case("readme") || file_name.eq_ignore_ascii_case("readme.md") {
+            let metadata = fs::metadata(path).context("Failed to read file metadata")?;
+            let modified = metadata.modified()
+                .ok()
+                .map(|time| time.duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .map(|d| d.as_secs()))
+                .flatten();
+            
+            files.push(MarkdownFile {
+                path: path.to_path_buf(),
+                name: file_name.to_string(),
+                modified,
+                size: metadata.len(),
+            });
+            continue;
+        }
+        
+        // Check if it's a markdown file with .md extension
         if let Some(ext) = path.extension() {
             if ext == "md" {
                 let metadata = fs::metadata(path).context("Failed to read file metadata")?;
@@ -61,7 +84,7 @@ pub fn list_markdown_files(dir: &Path) -> Result<Vec<MarkdownFile>> {
     Ok(files)
 }
 
-/// Reads the content of a markdown file
+/// Reads the content of a markdown file (or README)
 pub fn read_markdown_file(path: &Path) -> Result<String> {
     fs::read_to_string(path).context("Failed to read file")
 }
@@ -103,7 +126,19 @@ pub fn path_exists(path: &Path) -> bool {
 
 /// Gets the relative path from base directory
 pub fn get_relative_path(base: &Path, path: &Path) -> Result<PathBuf> {
-    path.strip_prefix(base)
-        .map(|p| p.to_path_buf())
-        .map_err(|e| io::Error::new(io::ErrorKind::NotFound, e).into())
+    match path.strip_prefix(base) {
+        Ok(rel_path) => Ok(rel_path.to_path_buf()),
+        Err(_) => {
+            // If normal strip_prefix fails (which can happen with different
+            // path representations), try with canonical paths
+            let canonical_base = base.canonicalize()
+                .context("Failed to canonicalize base path")?;
+            let canonical_path = path.canonicalize()
+                .context("Failed to canonicalize file path")?;
+            
+            canonical_path.strip_prefix(canonical_base)
+                .map(|p| p.to_path_buf())
+                .map_err(|e| io::Error::new(io::ErrorKind::NotFound, e).into())
+        }
+    }
 } 

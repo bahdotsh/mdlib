@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::fs as std_fs;
 use tokio::sync::RwLock;
 use axum::{
     extract::{Path as AxumPath, State, Query},
@@ -148,10 +149,42 @@ async fn get_file(
     State(state): State<AppState>,
     AxumPath(filename): AxumPath<String>,
 ) -> impl IntoResponse {
-    let path = state.base_dir.join(filename);
+    let path = state.base_dir.join(&filename);
     
-    if !path.is_file() || path.extension().map_or(false, |ext| ext != "md") {
+    // Check if file exists and is a markdown file
+    if !path.is_file() {
+        // If the path doesn't exist directly, try case-insensitive matching
+        // This helps with files like README.md vs Readme.md
+        let filename_lower = filename.to_lowercase();
+        let mut matching_path = None;
+        
+        if let Ok(entries) = std_fs::read_dir(&state.base_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.to_lowercase() == filename_lower && entry.path().is_file() {
+                        matching_path = Some(entry.path());
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if let Some(path) = matching_path {
+            // Found a case-insensitive match
+            return match fs::read_markdown_file(&path) {
+                Ok(content) => ApiResult::Success(StatusCode::OK, content),
+                Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            };
+        }
+        
         return ApiResult::Error(StatusCode::NOT_FOUND, "File not found".to_string());
+    }
+    
+    // Verify it's a markdown file or at least has no extension (like README)
+    if let Some(ext) = path.extension() {
+        if ext != "md" {
+            return ApiResult::Error(StatusCode::NOT_FOUND, "Not a markdown file".to_string());
+        }
     }
     
     match fs::read_markdown_file(&path) {
@@ -184,10 +217,43 @@ async fn update_file(
     AxumPath(filename): AxumPath<String>,
     Json(request): Json<UpdateFileRequest>,
 ) -> impl IntoResponse {
-    let path = state.base_dir.join(filename);
+    let path = state.base_dir.join(&filename);
     
-    if !path.is_file() || path.extension().map_or(false, |ext| ext != "md") {
+    // Check if file exists and is a markdown file
+    if !path.is_file() {
+        // Try to find the file with case-insensitive search, similar to get_file
+        let filename_lower = filename.to_lowercase();
+        let mut matching_path = None;
+        
+        if let Ok(entries) = std_fs::read_dir(&state.base_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.to_lowercase() == filename_lower && entry.path().is_file() {
+                        matching_path = Some(entry.path());
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if let Some(path) = matching_path {
+            return match fs::write_markdown_file(&path, &request.content) {
+                Ok(_) => ApiResult::Success(StatusCode::OK, "File updated".to_string()),
+                Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            };
+        }
+        
         return ApiResult::Error(StatusCode::NOT_FOUND, "File not found".to_string());
+    }
+    
+    // Verify it's a markdown file or README
+    let is_readme = path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_lowercase().starts_with("readme"))
+        .unwrap_or(false);
+        
+    if !is_readme && path.extension().map_or(true, |ext| ext != "md") {
+        return ApiResult::Error(StatusCode::NOT_FOUND, "Not a markdown file".to_string());
     }
     
     match fs::write_markdown_file(&path, &request.content) {
@@ -201,10 +267,43 @@ async fn delete_file(
     State(state): State<AppState>,
     AxumPath(filename): AxumPath<String>,
 ) -> impl IntoResponse {
-    let path = state.base_dir.join(filename);
+    let path = state.base_dir.join(&filename);
     
-    if !path.is_file() || path.extension().map_or(false, |ext| ext != "md") {
+    // Check if file exists and is a markdown file
+    if !path.is_file() {
+        // Try to find the file with case-insensitive search
+        let filename_lower = filename.to_lowercase();
+        let mut matching_path = None;
+        
+        if let Ok(entries) = std_fs::read_dir(&state.base_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.to_lowercase() == filename_lower && entry.path().is_file() {
+                        matching_path = Some(entry.path());
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if let Some(path) = matching_path {
+            return match fs::delete_markdown_file(&path) {
+                Ok(_) => ApiResult::Success(StatusCode::OK, "File deleted".to_string()),
+                Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            };
+        }
+        
         return ApiResult::Error(StatusCode::NOT_FOUND, "File not found".to_string());
+    }
+    
+    // Verify it's a markdown file or README
+    let is_readme = path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_lowercase().starts_with("readme"))
+        .unwrap_or(false);
+        
+    if !is_readme && path.extension().map_or(true, |ext| ext != "md") {
+        return ApiResult::Error(StatusCode::NOT_FOUND, "Not a markdown file".to_string());
     }
     
     match fs::delete_markdown_file(&path) {
