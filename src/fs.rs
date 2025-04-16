@@ -137,10 +137,11 @@ pub fn delete_markdown_file(path: &Path) -> Result<()> {
     fs::remove_file(path).context("Failed to delete file")
 }
 
-/// Checks if a path exists
-pub fn path_exists(path: &Path) -> bool {
-    path.exists()
-}
+// /// Checks if a path exists
+
+// pub fn path_exists(path: &Path) -> bool {
+//     path.exists()
+// }
 
 /// Gets the relative path from base directory
 pub fn get_relative_path(base: &Path, path: &Path) -> Result<PathBuf> {

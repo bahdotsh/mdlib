@@ -58,14 +58,14 @@ impl AppConfig {
         }
     }
     
-    /// Save configuration to a file
-    pub fn save(&self, config_path: &PathBuf) -> Result<()> {
-        let config_str = serde_json::to_string_pretty(self)
-            .context("Failed to serialize config")?;
+    // /// Save configuration to a file
+    // pub fn save(&self, config_path: &PathBuf) -> Result<()> {
+    //     let config_str = serde_json::to_string_pretty(self)
+    //         .context("Failed to serialize config")?;
         
-        fs::write(config_path, config_str)
-            .context(format!("Failed to write config file: {:?}", config_path))
-    }
+    //     fs::write(config_path, config_str)
+    //         .context(format!("Failed to write config file: {:?}", config_path))
+    // }
     
     /// Get the server address with port
     pub fn server_address(&self) -> String {

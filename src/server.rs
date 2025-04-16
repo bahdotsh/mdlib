@@ -237,7 +237,6 @@ async fn create_file(
     
     // Extract category from the frontmatter if it exists
     let mut category_path = PathBuf::new();
-    let mut content = request.content.clone();
     
     // Check if content has frontmatter with a category
     if let Some(category) = extract_category_from_content(&request.content) {
@@ -259,7 +258,7 @@ async fn create_file(
     // Create the file in the appropriate location
     let file_path = if category_path.as_os_str().is_empty() {
         // No category, create in base directory
-        match fs::create_markdown_file(&state.base_dir, name, &content) {
+        match fs::create_markdown_file(&state.base_dir, name, &request.content) {
             Ok(path) => path,
             Err(err) => {
                 return ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string());
@@ -267,7 +266,7 @@ async fn create_file(
         }
     } else {
         // Create in category directory
-        match fs::create_markdown_file(&category_path, name, &content) {
+        match fs::create_markdown_file(&category_path, name, &request.content) {
             Ok(path) => path,
             Err(err) => {
                 return ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string());
