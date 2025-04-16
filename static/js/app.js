@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Load categories
         loadCategories();
         
+        // Load tags
+        updateTagsDisplay();
+        
         // Set up event listeners
         setupEventListeners();
         
@@ -325,6 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 if (data.status === 'success') {
                     displayFiles(data.data);
+                    // Update tags display after loading files
+                    updateTagsDisplay();
                 } else {
                     fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error loading files</li>';
                     console.error('Error loading files:', data.message);
@@ -429,8 +434,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 noteTitle.appendChild(tagsIndicator);
             }
             
+            // Add delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn ml-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity flex-shrink-0';
+            deleteBtn.title = 'Delete note';
+            deleteBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            `;
+            
+            // Stop propagation to prevent opening the note when clicking the delete button
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteFile(file.path);
+            });
+            
             listItem.appendChild(noteIcon);
             listItem.appendChild(noteTitle);
+            listItem.appendChild(deleteBtn);
+            
+            // Add hover class to make the list item a proper group for hover actions
+            listItem.classList.add('group');
             
             // Add click event to load the file
             listItem.addEventListener('click', () => {
@@ -551,6 +576,75 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        // Edit Tags option
+        const editTagsOption = document.createElement('div');
+        editTagsOption.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
+        editTagsOption.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            Edit Tags
+        `;
+        editTagsOption.addEventListener('click', () => {
+            showAddTagsModal(filePath);
+            closeContextMenu();
+        });
+        
+        // Change Category option
+        const changeCategoryOption = document.createElement('div');
+        changeCategoryOption.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
+        changeCategoryOption.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            Change Category
+        `;
+        changeCategoryOption.addEventListener('click', () => {
+            // Get the current category
+            const pathParts = filePath.split('/');
+            let currentCategory = '';
+            if (pathParts.length > 2) {
+                currentCategory = pathParts[pathParts.length - 2];
+            }
+            
+            // Create a dropdown with available categories
+            let categoryOptions = '<option value="">No Category</option>';
+            categories.forEach(cat => {
+                const selected = cat === currentCategory ? 'selected' : '';
+                categoryOptions += `<option value="${cat}" ${selected}>${cat}</option>`;
+            });
+            
+            // Show custom dialog
+            const dialog = document.createElement('div');
+            dialog.className = 'fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50';
+            dialog.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full">
+                    <h3 class="text-lg font-semibold mb-4">Change Category</h3>
+                    <select id="category-select" class="w-full p-2 border rounded mb-4">
+                        ${categoryOptions}
+                    </select>
+                    <div class="flex justify-end space-x-2">
+                        <button id="cancel-category" class="px-4 py-2 border rounded text-gray-600 hover:bg-gray-50">Cancel</button>
+                        <button id="save-category" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Save</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            
+            // Handle dialog buttons
+            document.getElementById('cancel-category').addEventListener('click', () => {
+                dialog.remove();
+            });
+            
+            document.getElementById('save-category').addEventListener('click', () => {
+                const newCategory = document.getElementById('category-select').value;
+                changeNoteCategory(filePath, newCategory);
+                dialog.remove();
+            });
+            
+            closeContextMenu();
+        });
+        
         // Delete option
         const deleteOption = document.createElement('div');
         deleteOption.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-red-600';
@@ -568,6 +662,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         contextMenu.appendChild(renameOption);
+        contextMenu.appendChild(editTagsOption);
+        contextMenu.appendChild(changeCategoryOption);
         contextMenu.appendChild(deleteOption);
         document.body.appendChild(contextMenu);
         
@@ -973,6 +1069,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filePath === currentFile) {
                     loadFile(filePath);
                 }
+                
+                // Update tags display
+                updateTagsDisplay();
             } else {
                 console.error('Error adding tags:', data.message);
                 alert(`Error adding tags: ${data.message}`);
@@ -1156,29 +1255,50 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update tags display
     function updateTagsDisplay() {
-        if (allTags.size === 0) {
-            tagsContainer.innerHTML = '<span class="text-gray-500 text-sm italic">No tags found</span>';
-            return;
-        }
+        // Collect all tags from files
+        allTags = new Set();
         
-        tagsContainer.innerHTML = '';
-        
-        // Add each tag
-        Array.from(allTags).sort().forEach(tag => {
-            const tagSpan = document.createElement('span');
-            tagSpan.className = 'text-xs bg-indigo-100 text-indigo-800 rounded px-2 py-1 cursor-pointer hover:bg-indigo-200 flex items-center gap-1';
-            
-            // Tag text
-            const tagText = document.createElement('span');
-            tagText.textContent = tag;
-            tagSpan.appendChild(tagText);
-            
-            tagSpan.addEventListener('click', () => {
-                searchByTag(tag);
+        fetch('/api/files')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Process all files and collect tags
+                    data.data.forEach(file => {
+                        if (file.tags && Array.isArray(file.tags)) {
+                            file.tags.forEach(tag => allTags.add(tag));
+                        }
+                    });
+                    
+                    // Display the collected tags
+                    if (allTags.size === 0) {
+                        tagsContainer.innerHTML = '<span class="text-gray-500 text-sm italic">No tags found</span>';
+                        return;
+                    }
+                    
+                    tagsContainer.innerHTML = '';
+                    
+                    // Add each tag
+                    Array.from(allTags).sort().forEach(tag => {
+                        const tagSpan = document.createElement('span');
+                        tagSpan.className = 'tag text-xs bg-indigo-100 text-indigo-800 rounded px-2 py-1 cursor-pointer hover:bg-indigo-200 flex items-center gap-1';
+                        
+                        // Tag text
+                        const tagText = document.createElement('span');
+                        tagText.textContent = tag;
+                        tagSpan.appendChild(tagText);
+                        
+                        tagSpan.addEventListener('click', () => {
+                            searchByTag(tag);
+                        });
+                        
+                        tagsContainer.appendChild(tagSpan);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading tags:', error);
+                tagsContainer.innerHTML = '<span class="text-red-500 text-sm italic">Error loading tags</span>';
             });
-            
-            tagsContainer.appendChild(tagSpan);
-        });
     }
     
     // Search by category
@@ -1298,6 +1418,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Show success message
                 showToast(`Tag "${tag}" removed successfully`, 'success');
+                
+                // Update tags display
+                updateTagsDisplay();
             } else {
                 console.error('Error removing tag:', data.message);
                 showToast(`Error removing tag: ${data.message}`, 'error');
@@ -1336,6 +1459,45 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(error => {
             console.error('Error deleting category:', error);
             showToast('Error deleting category. Please try again.', 'error');
+        });
+    }
+
+    // Change a note's category
+    function changeNoteCategory(filePath, newCategory) {
+        // Extract the filename from the path
+        const fileName = filePath.split('/').pop();
+        
+        fetch('/api/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                path: filePath,
+                newPath: newCategory ? `/${newCategory}/${fileName}` : `/${fileName}`
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // If the current file is the one being moved, update currentFile
+                if (currentFile === filePath) {
+                    currentFile = data.newPath;
+                }
+                
+                // Refresh the file list
+                loadFiles();
+                
+                // Show success message
+                showToast('Note category changed successfully', 'success');
+            } else {
+                console.error('Error changing category:', data.message);
+                showToast(`Error: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error changing category:', error);
+            showToast('Error changing category. Please try again.', 'error');
         });
     }
 

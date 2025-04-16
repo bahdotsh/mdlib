@@ -352,18 +352,16 @@ body {
 }
 
 #file-list li {
-    display: flex !important;
-    align-items: center !important;
     padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
     cursor: pointer;
+    border-radius: 0.375rem;
     margin-bottom: 0.25rem;
-    font-size: 0.9rem;
-    transition: background-color var(--transition-speed);
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s, color 0.2s;
     position: relative;
     color: var(--text-color);
-    text-align: left !important;
-    justify-content: flex-start !important;
+    box-sizing: border-box;
 }
 
 #file-list li .note-icon {
@@ -1088,4 +1086,22 @@ select {
     .file-list-container {
         max-height: calc(100vh - 350px);
     }
+}
+
+/* Delete button in file list */
+.delete-btn {
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+#file-list li:hover .delete-btn {
+    opacity: 1;
+}
+
+.dark-mode .delete-btn {
+    color: #6b7280;
+}
+
+.dark-mode .delete-btn:hover {
+    color: #ef4444;
 } 
