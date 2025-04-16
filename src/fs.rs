@@ -11,6 +11,8 @@ pub struct MarkdownFile {
     pub name: String,
     pub modified: Option<u64>,
     pub size: u64,
+    pub tags: Vec<String>,
+    pub category: Option<String>,
 }
 
 /// Lists all markdown files in the given directory and its subdirectories
@@ -43,11 +45,19 @@ pub fn list_markdown_files(dir: &Path) -> Result<Vec<MarkdownFile>> {
                     .map(|d| d.as_secs()))
                 .flatten();
             
+            // Extract category from the path (relative to base dir)
+            let category = get_category_from_path(dir, path);
+            
+            // Extract tags from file content
+            let tags = extract_tags_from_file(path).unwrap_or_default();
+            
             files.push(MarkdownFile {
                 path: path.to_path_buf(),
                 name: file_name.to_string(),
                 modified,
                 size: metadata.len(),
+                tags,
+                category,
             });
             continue;
         }
@@ -68,11 +78,19 @@ pub fn list_markdown_files(dir: &Path) -> Result<Vec<MarkdownFile>> {
                     .unwrap_or("Untitled.md")
                     .to_string();
                 
+                // Extract category from the path (relative to base dir)
+                let category = get_category_from_path(dir, path);
+                
+                // Extract tags from file content
+                let tags = extract_tags_from_file(path).unwrap_or_default();
+                
                 files.push(MarkdownFile {
                     path: path.to_path_buf(),
                     name,
                     modified,
                     size: metadata.len(),
+                    tags,
+                    category,
                 });
             }
         }
@@ -140,5 +158,168 @@ pub fn get_relative_path(base: &Path, path: &Path) -> Result<PathBuf> {
                 .map(|p| p.to_path_buf())
                 .map_err(|e| io::Error::new(io::ErrorKind::NotFound, e).into())
         }
+    }
+}
+
+/// Extract tags from a markdown file
+fn extract_tags_from_file(path: &Path) -> Result<Vec<String>> {
+    let content = fs::read_to_string(path).context("Failed to read file for tags")?;
+    extract_tags_from_content(&content)
+}
+
+/// Extract tags from a markdown content string
+pub fn extract_tags_from_content(content: &str) -> Result<Vec<String>> {
+    // Look for tags in the format #tag or tags: [tag1, tag2, tag3]
+    let mut tags = Vec::new();
+    
+    // First check for a YAML frontmatter section with tags
+    if let Some(frontmatter) = extract_frontmatter(content) {
+        // Look for a tags: line in the frontmatter
+        for line in frontmatter.lines() {
+            let line = line.trim();
+            if line.starts_with("tags:") {
+                // Parse the tags list
+                let tags_part = line["tags:".len()..].trim();
+                if tags_part.starts_with('[') && tags_part.ends_with(']') {
+                    // Format: tags: [tag1, tag2, tag3]
+                    let tags_list = &tags_part[1..tags_part.len()-1];
+                    tags.extend(tags_list.split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty()));
+                } else {
+                    // Format: tags: tag1 tag2 tag3
+                    tags.extend(tags_part.split_whitespace()
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty()));
+                }
+            }
+        }
+    }
+    
+    // Then scan for hashtags in the content
+    for word in content.split_whitespace() {
+        if word.starts_with('#') && word.len() > 1 {
+            // Extract just the tag part (without #)
+            let tag = word[1..].trim_end_matches(|c: char| !c.is_alphanumeric()).to_string();
+            if !tag.is_empty() && !tags.contains(&tag) {
+                tags.push(tag);
+            }
+        }
+    }
+    
+    Ok(tags)
+}
+
+/// Extract YAML frontmatter from markdown content if present
+fn extract_frontmatter(content: &str) -> Option<String> {
+    let trimmed = content.trim_start();
+    if trimmed.starts_with("---") {
+        if let Some(end_index) = trimmed[3..].find("---") {
+            return Some(trimmed[3..end_index+3].to_string());
+        }
+    }
+    None
+}
+
+/// Get the category from a file path (relative to base directory)
+fn get_category_from_path(base_dir: &Path, file_path: &Path) -> Option<String> {
+    if let Ok(rel_path) = file_path.strip_prefix(base_dir) {
+        let parent = rel_path.parent()?;
+        if parent.as_os_str().is_empty() {
+            return None; // File is directly in the base directory
+        }
+        return Some(parent.to_string_lossy().into_owned());
+    }
+    None
+}
+
+/// Creates a new category directory
+pub fn create_category(dir: &Path, category_name: &str) -> Result<PathBuf> {
+    let path = dir.join(category_name);
+    
+    // Log that we're creating the category
+    println!("Creating category directory at: {:?}", path);
+    
+    // Create the directory if it doesn't exist
+    if !path.exists() {
+        fs::create_dir_all(&path).context("Failed to create category directory")?;
+        println!("Category directory created successfully");
+    } else {
+        println!("Category directory already exists");
+    }
+    
+    Ok(path)
+}
+
+/// Add tags to a markdown file
+pub fn add_tags_to_file(path: &Path, tags: &[String]) -> Result<()> {
+    let content = fs::read_to_string(path).context("Failed to read file")?;
+    let new_content = add_tags_to_content(&content, tags)?;
+    fs::write(path, new_content).context("Failed to write file")
+}
+
+/// Add tags to markdown content
+pub fn add_tags_to_content(content: &str, tags: &[String]) -> Result<String> {
+    if tags.is_empty() {
+        return Ok(content.to_string());
+    }
+    
+    let mut existing_tags = extract_tags_from_content(content)?;
+    let mut added_any = false;
+    
+    // Add new tags if they don't already exist
+    for tag in tags {
+        if !existing_tags.contains(tag) {
+            existing_tags.push(tag.clone());
+            added_any = true;
+        }
+    }
+    
+    if !added_any {
+        // No new tags to add
+        return Ok(content.to_string());
+    }
+    
+    // Check if there's frontmatter
+    if let Some(frontmatter) = extract_frontmatter(content) {
+        // Update the frontmatter with the new tags
+        let mut updated_frontmatter = String::new();
+        let mut has_tags_line = false;
+        
+        for line in frontmatter.lines() {
+            if line.trim().starts_with("tags:") {
+                // Replace the tags line
+                updated_frontmatter.push_str(&format!("tags: [{}]\n", existing_tags.join(", ")));
+                has_tags_line = true;
+            } else {
+                updated_frontmatter.push_str(line);
+                updated_frontmatter.push('\n');
+            }
+        }
+        
+        if !has_tags_line {
+            // Add a new tags line
+            updated_frontmatter.push_str(&format!("tags: [{}]\n", existing_tags.join(", ")));
+        }
+        
+        // Replace the frontmatter in the content
+        let start_idx = content.find("---").unwrap_or(0);
+        let end_idx = content[start_idx + 3..].find("---").map(|i| start_idx + i + 6).unwrap_or(start_idx);
+        let mut new_content = String::new();
+        new_content.push_str("---\n");
+        new_content.push_str(&updated_frontmatter);
+        new_content.push_str("---\n");
+        new_content.push_str(&content[end_idx..]);
+        
+        Ok(new_content)
+    } else {
+        // No frontmatter, add one
+        let mut new_content = String::new();
+        new_content.push_str("---\n");
+        new_content.push_str(&format!("tags: [{}]\n", existing_tags.join(", ")));
+        new_content.push_str("---\n\n");
+        new_content.push_str(content);
+        
+        Ok(new_content)
     }
 } 

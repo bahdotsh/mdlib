@@ -16,8 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnEdit = document.getElementById('btn-edit');
     const btnSplitView = document.getElementById('btn-split-view');
     const btnPreviewOnly = document.getElementById('btn-preview-only');
+    const btnAddTags = document.getElementById('btn-add-tags');
     const newNoteModal = document.getElementById('new-note-modal');
     const newNoteName = document.getElementById('new-note-name');
+    const newNoteCategory = document.getElementById('new-note-category');
+    const newNoteTags = document.getElementById('new-note-tags');
     const btnModalCreate = document.getElementById('btn-modal-create');
     const btnModalCancel = document.getElementById('btn-modal-cancel');
     const searchInput = document.getElementById('search-input');
@@ -27,6 +30,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyState = document.getElementById('empty-state');
     const contentContainer = document.getElementById('content-container');
     const currentFilename = document.getElementById('current-filename');
+    const addTagsModal = document.getElementById('add-tags-modal');
+    const tagInput = document.getElementById('tag-input');
+    const btnTagAdd = document.getElementById('btn-tag-add');
+    const btnTagCancel = document.getElementById('btn-tag-cancel');
+    const categoryList = document.getElementById('category-list');
+    const tagsContainer = document.getElementById('tags-container');
+    const newCategoryInput = document.getElementById('new-category-input');
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    const newCategoryBtn = document.getElementById('new-category-btn');
+    const categoryForm = document.getElementById('category-form');
 
     // State
     let currentFile = null;
@@ -34,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let viewMode = 'preview'; // 'preview', 'edit', or 'split'
     let isDarkMode = localStorage.getItem('darkMode') === 'true';
     let autoSaveTimeout = null;
+    let allTags = new Set();
+    let categories = [];
     
     // Initialize the application
     init();
@@ -51,6 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Load files
         loadFiles();
+        
+        // Load categories
+        loadCategories();
         
         // Set up event listeners
         setupEventListeners();
@@ -103,6 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Preview only button - switch back to preview mode
         btnPreviewOnly.addEventListener('click', () => setViewMode('preview'));
         
+        // Add tags button in toolbar
+        btnAddTags.addEventListener('click', () => {
+            if (currentFile) {
+                showAddTagsModal(currentFile);
+            } else {
+                alert('No file is currently open.');
+            }
+        });
+        
         // Save the current file
         btnSave.addEventListener('click', saveCurrentFile);
         
@@ -111,6 +138,23 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Cancel creating a new note
         btnModalCancel.addEventListener('click', hideNewNoteModal);
+        
+        // Add tag buttons
+        btnTagAdd.addEventListener('click', addTagsToCurrentFile);
+        btnTagCancel.addEventListener('click', hideAddTagsModal);
+        
+        // Show category form
+        newCategoryBtn.addEventListener('click', toggleCategoryForm);
+        
+        // Add category button
+        addCategoryBtn.addEventListener('click', createCategory);
+        
+        // Add category on enter key
+        newCategoryInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                createCategory();
+            }
+        });
         
         // Search functionality
         searchInput.addEventListener('input', debounce(searchFiles, 300));
@@ -148,14 +192,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Escape key to exit modals
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && !newNoteModal.classList.contains('hidden')) {
-                hideNewNoteModal();
+            if (e.key === 'Escape') {
+                if (!newNoteModal.classList.contains('hidden')) {
+                    hideNewNoteModal();
+                }
+                if (!addTagsModal.classList.contains('hidden')) {
+                    hideAddTagsModal();
+                }
+                if (!categoryForm.classList.contains('hidden')) {
+                    hideCategoryForm();
+                }
             }
         });
     }
 
     // Show new note modal
     function showNewNoteModal() {
+        // Load categories first to ensure dropdown is populated
+        loadCategories();
+        
         newNoteModal.classList.remove('hidden');
         newNoteName.focus();
     }
@@ -164,6 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideNewNoteModal() {
         newNoteModal.classList.add('hidden');
         newNoteName.value = '';
+        newNoteCategory.value = '';
+        newNoteTags.value = '';
     }
 
     // Set the view mode (preview, edit, or split)
@@ -242,18 +299,97 @@ document.addEventListener('DOMContentLoaded', () => {
         
         fileList.innerHTML = '';
         
+        // Collect all tags
+        allTags = new Set();
+        
         files.forEach(file => {
             const li = document.createElement('li');
-            li.textContent = file.name;
+            li.className = 'py-1 px-2 rounded hover:bg-gray-100 cursor-pointer flex items-center justify-between';
+            
+            // Create filename container
+            const filenameContainer = document.createElement('span');
+            filenameContainer.textContent = file.name;
+            filenameContainer.className = 'truncate';
+            li.appendChild(filenameContainer);
+            
+            // Create actions container
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = 'flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity';
+            
+            // Add tags button
+            const tagButton = document.createElement('button');
+            tagButton.className = 'text-gray-500 hover:text-indigo-600 p-1 rounded';
+            tagButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+            `;
+            tagButton.title = 'Add Tags';
+            tagButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showAddTagsModal(file.path);
+            });
+            
+            actionsContainer.appendChild(tagButton);
+            li.appendChild(actionsContainer);
+            
+            // Add hover effect
+            li.addEventListener('mouseenter', () => {
+                actionsContainer.classList.remove('opacity-0');
+                actionsContainer.classList.add('opacity-100');
+            });
+            
+            li.addEventListener('mouseleave', () => {
+                actionsContainer.classList.remove('opacity-100');
+                actionsContainer.classList.add('opacity-0');
+            });
+            
+            // Set data attributes
             li.setAttribute('data-path', file.path);
+            
+            // Add click handler for the whole item
             li.addEventListener('click', () => loadFile(file.path));
+            
+            // Add tags display if file has tags
+            if (file.tags && file.tags.length > 0) {
+                const tagsContainer = document.createElement('div');
+                tagsContainer.className = 'flex flex-wrap gap-1 mt-1';
+                
+                file.tags.forEach(tag => {
+                    allTags.add(tag);
+                    
+                    const tagSpan = document.createElement('span');
+                    tagSpan.className = 'text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded';
+                    tagSpan.textContent = tag;
+                    tagsContainer.appendChild(tagSpan);
+                });
+                
+                li.appendChild(tagsContainer);
+            }
+            
+            // Add category if file has a category
+            if (file.category) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'text-xs text-gray-500 mt-1';
+                categoryDiv.innerHTML = `<span class="inline-block mr-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                </span>${file.category}`;
+                li.appendChild(categoryDiv);
+            }
+            
             fileList.appendChild(li);
         });
+        
+        // Update tags display
+        updateTagsDisplay();
     }
 
     // Load a file into the editor
     function loadFile(path) {
-        fetch(`/api/files/${encodeURIComponent(getFilename(path))}`)
+        // Need to use the full path for files in categories
+        fetch(`/api/files/${encodeURIComponent(path)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -261,11 +397,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     editor.value = data.data;
                     updatePreview();
                     
-                    // Update current file
-                    currentFile = getFilename(path);
+                    // Store the full path for saving
+                    currentFile = path;
                     
-                    // Display the filename
-                    currentFilename.textContent = currentFile;
+                    // Display just the filename in the UI
+                    currentFilename.textContent = getFilename(path);
                     
                     // Update active file in the list
                     const fileItems = fileList.querySelectorAll('li');
@@ -284,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setViewMode('preview');
                     
                     // Add file name to document title
-                    document.title = `${currentFile} - mdlib`;
+                    document.title = `${getFilename(path)} - mdlib`;
                 } else {
                     console.error('Error loading file:', data.message);
                     alert(`Error loading file: ${data.message}`);
@@ -329,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const content = editor.value;
         
+        // Use the full path stored in currentFile
         fetch(`/api/files/${encodeURIComponent(currentFile)}`, {
             method: 'PUT',
             headers: {
@@ -392,6 +529,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add .md extension if not present
         const fileName = name.endsWith('.md') ? name : `${name}.md`;
         
+        // Get category and tags
+        const category = newNoteCategory.value.trim();
+        const tagsInput = newNoteTags.value.trim();
+        const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+        
+        // Generate frontmatter if we have category or tags
+        let frontmatter = '';
+        if (category || tags.length > 0) {
+            frontmatter = '---\n';
+            if (category) {
+                frontmatter += `category: ${category}\n`;
+            }
+            if (tags.length > 0) {
+                frontmatter += `tags: [${tags.join(', ')}]\n`;
+            }
+            frontmatter += '---\n\n';
+        }
+        
+        // Create content with frontmatter
+        const content = frontmatter + '# ' + name + '\n\nStart writing your markdown here...';
+        
+        // Create the file
         fetch('/api/files', {
             method: 'POST',
             headers: {
@@ -399,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             body: JSON.stringify({
                 name: fileName,
-                content: '# ' + name + '\n\nStart writing your markdown here...'
+                content: content
             })
         })
         .then(response => response.json())
@@ -552,5 +711,271 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(timeout);
             timeout = setTimeout(later, delay);
         };
+    }
+
+    // Show add tags modal
+    function showAddTagsModal(filePath) {
+        tagInput.value = '';
+        addTagsModal.setAttribute('data-file', filePath || currentFile);
+        addTagsModal.classList.remove('hidden');
+        tagInput.focus();
+    }
+    
+    // Hide add tags modal
+    function hideAddTagsModal() {
+        addTagsModal.classList.add('hidden');
+        tagInput.value = '';
+    }
+    
+    // Add tags to current file
+    function addTagsToCurrentFile() {
+        const filePath = addTagsModal.getAttribute('data-file');
+        if (!filePath) {
+            alert('No file selected.');
+            return;
+        }
+        
+        const tagsInput = tagInput.value.trim();
+        if (!tagsInput) {
+            alert('Please enter at least one tag.');
+            return;
+        }
+        
+        const tags = tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag);
+        
+        // Use the full file path
+        fetch(`/api/tags/${encodeURIComponent(filePath)}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tags })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Close the modal
+                hideAddTagsModal();
+                
+                // Refresh file list to show updated tags
+                loadFiles();
+                
+                // If this was the current file, reload it to show updated content
+                if (filePath === currentFile) {
+                    loadFile(filePath);
+                }
+            } else {
+                console.error('Error adding tags:', data.message);
+                alert(`Error adding tags: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error adding tags:', error);
+            alert('Error adding tags. Please try again.');
+        });
+    }
+    
+    // Load categories
+    function loadCategories() {
+        fetch('/api/categories')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    categories = data.data;
+                    updateCategoriesDisplay();
+                } else {
+                    categoryList.innerHTML = '<li class="text-red-500 text-sm italic">Error loading categories</li>';
+                    console.error('Error loading categories:', data.message);
+                }
+            })
+            .catch(error => {
+                categoryList.innerHTML = '<li class="text-red-500 text-sm italic">Error loading categories</li>';
+                console.error('Error loading categories:', error);
+            });
+    }
+    
+    // Update categories display
+    function updateCategoriesDisplay() {
+        // Update category list in sidebar
+        categoryList.innerHTML = '';
+        
+        if (categories.length === 0) {
+            categoryList.innerHTML = '<li class="category-empty">No categories yet</li>';
+        } else {
+            // Add "All" option
+            const allLi = document.createElement('li');
+            allLi.className = 'category-item';
+            allLi.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span>All Notes</span>
+            `;
+            allLi.addEventListener('click', () => {
+                // Clear category filter
+                loadFiles();
+                
+                // Update active state
+                categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
+                allLi.classList.add('active');
+            });
+            
+            // Set initially active
+            allLi.classList.add('active');
+            categoryList.appendChild(allLi);
+            
+            // Add each category
+            categories.forEach(category => {
+                const li = document.createElement('li');
+                li.className = 'category-item';
+                li.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                    <span>${category}</span>
+                `;
+                li.addEventListener('click', () => {
+                    // Filter by category
+                    searchByCategory(category);
+                    
+                    // Update active state
+                    categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
+                    li.classList.add('active');
+                });
+                categoryList.appendChild(li);
+            });
+        }
+        
+        // Update category dropdown in new note modal
+        newNoteCategory.innerHTML = '<option value="">No Category</option>';
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            newNoteCategory.appendChild(option);
+        });
+    }
+    
+    // Create a new category
+    function createCategory() {
+        const name = newCategoryInput.value.trim();
+        
+        if (!name) {
+            alert('Please enter a category name.');
+            return;
+        }
+        
+        fetch('/api/category', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Clear input and hide form
+                newCategoryInput.value = '';
+                hideCategoryForm();
+                
+                // Show success message
+                const successMessage = document.createElement('div');
+                successMessage.className = 'fixed bottom-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md';
+                successMessage.innerHTML = `<p>Category "${name}" created successfully!</p>`;
+                document.body.appendChild(successMessage);
+                
+                // Remove success message after 3 seconds
+                setTimeout(() => {
+                    successMessage.remove();
+                }, 3000);
+                
+                // Reload categories
+                loadCategories();
+            } else {
+                console.error('Error creating category:', data.message);
+                alert(`Error creating category: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating category:', error);
+            alert('Error creating category. Please try again.');
+        });
+    }
+    
+    // Update tags display
+    function updateTagsDisplay() {
+        tagsContainer.innerHTML = '';
+        
+        if (allTags.size === 0) {
+            tagsContainer.innerHTML = '<span class="text-gray-500 text-sm italic">No tags</span>';
+            return;
+        }
+        
+        // Convert Set to Array, sort, and display
+        Array.from(allTags).sort().forEach(tag => {
+            const tagSpan = document.createElement('span');
+            tagSpan.className = 'bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-200';
+            tagSpan.textContent = tag;
+            tagSpan.addEventListener('click', () => searchByTag(tag));
+            tagsContainer.appendChild(tagSpan);
+        });
+    }
+    
+    // Search by category
+    function searchByCategory(category) {
+        fetch(`/api/search?category=${encodeURIComponent(category)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    displayFiles(data.data);
+                } else {
+                    fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error searching files</li>';
+                    console.error('Error searching files:', data.message);
+                }
+            })
+            .catch(error => {
+                fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error searching files</li>';
+                console.error('Error searching files:', error);
+            });
+    }
+    
+    // Search by tag
+    function searchByTag(tag) {
+        fetch(`/api/search?tag=${encodeURIComponent(tag)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    displayFiles(data.data);
+                } else {
+                    fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error searching files</li>';
+                    console.error('Error searching files:', data.message);
+                }
+            })
+            .catch(error => {
+                fileList.innerHTML = '<li class="text-red-500 text-sm italic">Error searching files</li>';
+                console.error('Error searching files:', error);
+            });
+    }
+
+    // Toggle category form visibility
+    function toggleCategoryForm() {
+        if (categoryForm.classList.contains('hidden')) {
+            showCategoryForm();
+        } else {
+            hideCategoryForm();
+        }
+    }
+    
+    // Show category form
+    function showCategoryForm() {
+        categoryForm.classList.remove('hidden');
+        newCategoryInput.focus();
+    }
+    
+    // Hide category form
+    function hideCategoryForm() {
+        categoryForm.classList.add('hidden');
+        newCategoryInput.value = '';
     }
 }); 
