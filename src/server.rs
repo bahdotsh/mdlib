@@ -89,6 +89,11 @@ struct CreateCategoryRequest {
     name: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct RemoveTagsRequest {
+    tags: Vec<String>,
+}
+
 // App state
 #[derive(Clone)]
 struct AppState {
@@ -123,7 +128,9 @@ pub async fn start_server(base_dir: PathBuf) -> Result<()> {
         .route("/files/:filename", delete(delete_file))
         .route("/search", get(search_files))
         .route("/tags/:filename", put(add_tags))
+        .route("/tags/:filename", delete(remove_tags))
         .route("/category", post(create_category))
+        .route("/category/:category_name", delete(delete_category))
         .route("/categories", get(list_categories));
     
     // Combine API routes with static files
@@ -646,4 +653,90 @@ async fn list_categories(
     categories.sort();
     
     ApiResult::Success(StatusCode::OK, categories)
+}
+
+/// Remove tags from a file
+async fn remove_tags(
+    State(state): State<AppState>,
+    AxumPath(filename): AxumPath<String>,
+    Json(request): Json<RemoveTagsRequest>,
+) -> impl IntoResponse {
+    // First, try direct path
+    let direct_path = state.base_dir.join(&filename);
+    
+    if direct_path.is_file() {
+        // Verify it's a markdown file or README
+        let is_readme = direct_path.file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.to_lowercase().starts_with("readme"))
+            .unwrap_or(false);
+            
+        if is_readme || direct_path.extension().is_some_and(|ext| ext == "md") {
+            return match fs::remove_tags_from_file(&direct_path, &request.tags) {
+                Ok(_) => ApiResult::Success(StatusCode::OK, "Tags removed".to_string()),
+                Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            };
+        }
+    }
+    
+    // If direct path doesn't work, try handling it as a path with slashes or backslashes
+    let path_parts: Vec<&str> = filename.split(['/', '\\']).collect();
+    if path_parts.len() > 1 {
+        let combined_path = state.base_dir.join(&filename);
+        if combined_path.is_file() {
+            // Verify it's a markdown file
+            if combined_path.extension().is_some_and(|ext| ext == "md") {
+                return match fs::remove_tags_from_file(&combined_path, &request.tags) {
+                    Ok(_) => ApiResult::Success(StatusCode::OK, "Tags removed".to_string()),
+                    Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+                };
+            }
+        }
+    }
+    
+    // Last resort: search for the file in all directories
+    let all_files = match fs::list_markdown_files(&state.base_dir) {
+        Ok(files) => files,
+        Err(err) => return ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+    };
+    
+    // Try to find a file with a matching name
+    let file_name_buf = PathBuf::from(&filename);
+    let file_name = file_name_buf.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&filename);
+    
+    for file in all_files {
+        let curr_file_name = file.path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        
+        if curr_file_name == file_name || curr_file_name.to_lowercase() == file_name.to_lowercase() {
+            return match fs::remove_tags_from_file(&file.path, &request.tags) {
+                Ok(_) => ApiResult::Success(StatusCode::OK, "Tags removed".to_string()),
+                Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            };
+        }
+    }
+    
+    // If we get here, we couldn't find the file
+    ApiResult::Error(StatusCode::NOT_FOUND, "File not found".to_string())
+}
+
+/// Delete a category 
+async fn delete_category(
+    State(state): State<AppState>,
+    AxumPath(category_name): AxumPath<String>,
+) -> impl IntoResponse {
+    // Validate the category name
+    let name = category_name.trim();
+    if name.is_empty() {
+        return ApiResult::Error(StatusCode::BAD_REQUEST, "Category name cannot be empty".to_string());
+    }
+    
+    // Check if the category exists and delete it
+    match fs::delete_category(&state.base_dir, name) {
+        Ok(_) => ApiResult::Success(StatusCode::OK, format!("Category '{}' deleted", name)),
+        Err(err) => ApiResult::Error(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+    }
 } 

@@ -321,4 +321,101 @@ pub fn add_tags_to_content(content: &str, tags: &[String]) -> Result<String> {
         
         Ok(new_content)
     }
+}
+
+/// Remove tags from a markdown file
+pub fn remove_tags_from_file(path: &Path, tags_to_remove: &[String]) -> Result<()> {
+    let content = fs::read_to_string(path).context("Failed to read file")?;
+    let new_content = remove_tags_from_content(&content, tags_to_remove)?;
+    fs::write(path, new_content).context("Failed to write file")
+}
+
+/// Remove tags from markdown content
+pub fn remove_tags_from_content(content: &str, tags_to_remove: &[String]) -> Result<String> {
+    if tags_to_remove.is_empty() {
+        return Ok(content.to_string());
+    }
+    
+    let mut existing_tags = extract_tags_from_content(content)?;
+    let initial_count = existing_tags.len();
+    
+    // Remove specified tags
+    existing_tags.retain(|tag| !tags_to_remove.contains(tag));
+    
+    // If no tags were removed, return original content
+    if existing_tags.len() == initial_count {
+        return Ok(content.to_string());
+    }
+    
+    // Check if there's frontmatter
+    if let Some(frontmatter) = extract_frontmatter(content) {
+        // Update the frontmatter with the remaining tags
+        let mut updated_frontmatter = String::new();
+        let mut has_tags_line = false;
+        
+        for line in frontmatter.lines() {
+            if line.trim().starts_with("tags:") {
+                // Replace the tags line, or remove it if no tags left
+                if !existing_tags.is_empty() {
+                    updated_frontmatter.push_str(&format!("tags: [{}]\n", existing_tags.join(", ")));
+                }
+                has_tags_line = true;
+            } else {
+                updated_frontmatter.push_str(line);
+                updated_frontmatter.push('\n');
+            }
+        }
+        
+        // If there were no tags line but we have tags, add it
+        if !has_tags_line && !existing_tags.is_empty() {
+            updated_frontmatter.push_str(&format!("tags: [{}]\n", existing_tags.join(", ")));
+        }
+        
+        // Replace the frontmatter in the content
+        let start_idx = content.find("---").unwrap_or(0);
+        let end_idx = content[start_idx + 3..].find("---").map(|i| start_idx + i + 6).unwrap_or(start_idx);
+        let mut new_content = String::new();
+        new_content.push_str("---\n");
+        new_content.push_str(&updated_frontmatter);
+        new_content.push_str("---\n");
+        new_content.push_str(&content[end_idx..]);
+        
+        Ok(new_content)
+    } else if !existing_tags.is_empty() {
+        // No frontmatter but we have tags, add a new frontmatter
+        let mut new_content = String::new();
+        new_content.push_str("---\n");
+        new_content.push_str(&format!("tags: [{}]\n", existing_tags.join(", ")));
+        new_content.push_str("---\n\n");
+        new_content.push_str(content);
+        
+        Ok(new_content)
+    } else {
+        // No frontmatter and no tags left, return original content
+        Ok(content.to_string())
+    }
+}
+
+/// Delete a category directory
+pub fn delete_category(dir: &Path, category_name: &str) -> Result<()> {
+    let category_path = dir.join(category_name);
+    
+    // Ensure the path exists and is a directory
+    if !category_path.exists() {
+        return Err(anyhow::anyhow!("Category directory doesn't exist"));
+    }
+    
+    if !category_path.is_dir() {
+        return Err(anyhow::anyhow!("The specified path is not a directory"));
+    }
+    
+    // Check if the directory is empty
+    let is_empty = category_path.read_dir()?.next().is_none();
+    
+    if !is_empty {
+        return Err(anyhow::anyhow!("Cannot delete non-empty category. Move or delete files first."));
+    }
+    
+    // Delete the directory
+    fs::remove_dir(category_path).context("Failed to delete category directory")
 } 

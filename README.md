@@ -1,8 +1,4 @@
----
-tags: [test]
----
-
-# mdlib - Markdown Note-Taking Application
+# mdlib - Your personal wiki/ md library
 
 A beautiful, web-based tool for creating, editing, and organizing markdown notes with real-time preview.
 

@@ -539,20 +539,36 @@ button {
     display: flex;
     align-items: center;
     padding: 0.5rem;
-    border-radius: 0.25rem;
-    transition: all 0.2s;
     margin-bottom: 0.25rem;
-    background-color: #f3f4f6;
+    border-radius: 0.375rem;
     cursor: pointer;
+    position: relative;
 }
 
 .category-item:hover {
-    background-color: #e5e7eb;
+    background-color: #f3f4f6;
 }
 
 .category-item.active {
-    background-color: #eef2ff;
-    border-left: 3px solid #4f46e5;
+    background-color: #e5edff;
+    color: #4f46e5;
+    font-weight: 500;
+}
+
+.category-name {
+    margin-left: 0.25rem;
+    flex-grow: 1;
+}
+
+.category-delete-btn {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.category-item:hover .category-delete-btn {
+    visibility: visible;
+    opacity: 1;
 }
 
 .category-item svg {
@@ -752,4 +768,45 @@ button {
     width: 1.25rem;
     height: 1.25rem;
     color: #4f46e5;
+}
+
+/* Toast notification */
+.toast {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    transition: opacity 0.5s ease;
+}
+
+.toast-success {
+    background-color: #10b981;
+    color: white;
+}
+
+.toast-error {
+    background-color: #ef4444;
+    color: white;
+}
+
+/* Tag hover styles */
+.tag-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.tag-delete-btn {
+    margin-left: 0.25rem;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.tag-item:hover .tag-delete-btn {
+    visibility: visible;
+    opacity: 1;
 } 

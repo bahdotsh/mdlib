@@ -330,7 +330,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 showAddTagsModal(file.path);
             });
             
+            // Add delete button
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'text-gray-500 hover:text-red-600 p-1 rounded';
+            deleteButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            `;
+            deleteButton.title = 'Delete Note';
+            deleteButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteFile(file.path);
+            });
+            
             actionsContainer.appendChild(tagButton);
+            actionsContainer.appendChild(deleteButton);
             li.appendChild(actionsContainer);
             
             // Add hover effect
@@ -359,8 +374,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     allTags.add(tag);
                     
                     const tagSpan = document.createElement('span');
-                    tagSpan.className = 'text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded';
-                    tagSpan.textContent = tag;
+                    tagSpan.className = 'text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded group relative';
+                    
+                    // Create tag text wrapper
+                    const tagText = document.createElement('span');
+                    tagText.textContent = tag;
+                    tagSpan.appendChild(tagText);
+                    
+                    // Create delete button for tag
+                    const tagDeleteBtn = document.createElement('button');
+                    tagDeleteBtn.className = 'ml-1 text-indigo-400 hover:text-red-500 hidden group-hover:inline-block';
+                    tagDeleteBtn.innerHTML = '×';
+                    tagDeleteBtn.title = 'Remove tag';
+                    tagDeleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeTagFromFile(file.path, tag);
+                    });
+                    tagSpan.appendChild(tagDeleteBtn);
+                    
                     tagsContainer.appendChild(tagSpan);
                 });
                 
@@ -796,55 +827,74 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update categories display
     function updateCategoriesDisplay() {
-        // Update category list in sidebar
+        if (categories.length === 0) {
+            categoryList.innerHTML = '<li class="category-empty">No categories found</li>';
+            return;
+        }
+        
         categoryList.innerHTML = '';
         
-        if (categories.length === 0) {
-            categoryList.innerHTML = '<li class="category-empty">No categories yet</li>';
-        } else {
-            // Add "All" option
-            const allLi = document.createElement('li');
-            allLi.className = 'category-item';
-            allLi.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        // Add "All" option
+        const allItem = document.createElement('li');
+        allItem.textContent = 'All Notes';
+        allItem.className = 'category-item active';
+        allItem.addEventListener('click', () => {
+            loadFiles();
+            // Update active state
+            categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
+            allItem.classList.add('active');
+        });
+        categoryList.appendChild(allItem);
+        
+        // Add each category
+        categories.forEach(category => {
+            const li = document.createElement('li');
+            li.className = 'category-item flex justify-between items-center';
+            
+            // Category name and icon
+            const categoryLabel = document.createElement('span');
+            categoryLabel.className = 'flex-grow flex items-center';
+            categoryLabel.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
-                <span>All Notes</span>
+                <span class="category-name">${category}</span>
             `;
-            allLi.addEventListener('click', () => {
-                // Clear category filter
-                loadFiles();
-                
+            li.appendChild(categoryLabel);
+            
+            // Delete category button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'category-delete-btn text-gray-400 hover:text-red-500 hidden group-hover:block';
+            deleteBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            `;
+            deleteBtn.title = 'Delete category';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteCategory(category);
+            });
+            li.appendChild(deleteBtn);
+            
+            // Show delete button on hover
+            li.addEventListener('mouseenter', () => {
+                deleteBtn.classList.remove('hidden');
+            });
+            li.addEventListener('mouseleave', () => {
+                deleteBtn.classList.add('hidden');
+            });
+            
+            // Filter by category when clicked
+            li.addEventListener('click', () => {
+                searchByCategory(category);
                 // Update active state
                 categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
-                allLi.classList.add('active');
+                li.classList.add('active');
             });
             
-            // Set initially active
-            allLi.classList.add('active');
-            categoryList.appendChild(allLi);
-            
-            // Add each category
-            categories.forEach(category => {
-                const li = document.createElement('li');
-                li.className = 'category-item';
-                li.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <span>${category}</span>
-                `;
-                li.addEventListener('click', () => {
-                    // Filter by category
-                    searchByCategory(category);
-                    
-                    // Update active state
-                    categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
-                    li.classList.add('active');
-                });
-                categoryList.appendChild(li);
-            });
-        }
+            categoryList.appendChild(li);
+        });
         
         // Update category dropdown in new note modal
         newNoteCategory.innerHTML = '<option value="">No Category</option>';
@@ -905,19 +955,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update tags display
     function updateTagsDisplay() {
-        tagsContainer.innerHTML = '';
-        
         if (allTags.size === 0) {
-            tagsContainer.innerHTML = '<span class="text-gray-500 text-sm italic">No tags</span>';
+            tagsContainer.innerHTML = '<span class="text-gray-500 text-sm italic">No tags found</span>';
             return;
         }
         
-        // Convert Set to Array, sort, and display
+        tagsContainer.innerHTML = '';
+        
+        // Add each tag
         Array.from(allTags).sort().forEach(tag => {
             const tagSpan = document.createElement('span');
-            tagSpan.className = 'bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs cursor-pointer hover:bg-indigo-200';
-            tagSpan.textContent = tag;
-            tagSpan.addEventListener('click', () => searchByTag(tag));
+            tagSpan.className = 'text-xs bg-indigo-100 text-indigo-800 rounded px-2 py-1 cursor-pointer hover:bg-indigo-200 flex items-center gap-1';
+            
+            // Tag text
+            const tagText = document.createElement('span');
+            tagText.textContent = tag;
+            tagSpan.appendChild(tagText);
+            
+            tagSpan.addEventListener('click', () => {
+                searchByTag(tag);
+            });
+            
             tagsContainer.appendChild(tagSpan);
         });
     }
@@ -977,5 +1035,127 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideCategoryForm() {
         categoryForm.classList.add('hidden');
         newCategoryInput.value = '';
+    }
+
+    // Delete a file
+    function deleteFile(path) {
+        if (!confirm(`Are you sure you want to delete this note?`)) {
+            return;
+        }
+        
+        fetch(`/api/files/${encodeURIComponent(path)}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // If the current file is the one being deleted, clear the editor
+                if (currentFile === path) {
+                    currentFile = null;
+                    editor.value = '';
+                    preview.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    contentContainer.classList.add('hidden');
+                    document.title = 'mdlib Personal Wiki';
+                }
+                
+                // Refresh the file list
+                loadFiles();
+                
+                // Show success message
+                showToast('Note deleted successfully', 'success');
+            } else {
+                console.error('Error deleting file:', data.message);
+                showToast(`Error deleting note: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting file:', error);
+            showToast('Error deleting note. Please try again.', 'error');
+        });
+    }
+
+    // Remove a tag from a file
+    function removeTagFromFile(filePath, tag) {
+        fetch(`/api/tags/${encodeURIComponent(filePath)}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ tags: [tag] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Refresh the file if it's currently open
+                if (currentFile === filePath) {
+                    loadFile(filePath);
+                }
+                
+                // Refresh the file list
+                loadFiles();
+                
+                // Show success message
+                showToast(`Tag "${tag}" removed successfully`, 'success');
+            } else {
+                console.error('Error removing tag:', data.message);
+                showToast(`Error removing tag: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error removing tag:', error);
+            showToast('Error removing tag. Please try again.', 'error');
+        });
+    }
+
+    // Delete a category
+    function deleteCategory(category) {
+        if (!confirm(`Are you sure you want to delete the category "${category}"?`)) {
+            return;
+        }
+        
+        fetch(`/api/category/${encodeURIComponent(category)}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Refresh categories
+                loadCategories();
+                // Refresh files
+                loadFiles();
+                
+                // Show success message
+                showToast(`Category "${category}" deleted successfully`, 'success');
+            } else {
+                console.error('Error deleting category:', data.message);
+                showToast(`Error: ${data.message}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting category:', error);
+            showToast('Error deleting category. Please try again.', 'error');
+        });
+    }
+
+    // Show a toast message
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-5 right-5 p-3 rounded-lg shadow-lg transition-opacity duration-500 z-50 ${
+            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // Fade in
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            
+            // Remove after fade out
+            setTimeout(() => {
+                toast.remove();
+            }, 500);
+        }, 3000);
     }
 }); 
