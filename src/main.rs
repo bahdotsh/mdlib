@@ -4,6 +4,7 @@ use std::env;
 mod fs;
 mod server;
 mod config;
+mod embedded;
 
 #[tokio::main]
 async fn main() {
@@ -12,6 +13,13 @@ async fn main() {
     println!("🔍 mdlib - Your Personal Wiki / MD library!");
     println!("=======================================================");
     
+    // Verify that essential static files are embedded
+    if let Err(missing_files) = embedded::verify_essential_files() {
+        eprintln!("❌ Error: Missing essential embedded files: {:?}", missing_files);
+        eprintln!("This indicates a problem with the compiled binary. Please report this issue.");
+        std::process::exit(1);
+    }
+    
     // Check for special commands
     let args: Vec<String> = env::args().collect();
     
@@ -19,6 +27,13 @@ async fn main() {
     if args.len() > 1 {
         if args[1] == "--config" || args[1] == "-c" {
             handle_config_command(&args);
+            return;
+        } else if args[1] == "--list-embedded" {
+            // Debug command to list all embedded files
+            println!("📁 Listing all embedded files:");
+            for file in embedded::list_embedded_files() {
+                println!("  - {}", file);
+            }
             return;
         }
     }

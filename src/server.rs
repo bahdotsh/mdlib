@@ -8,7 +8,6 @@ use axum::{
     routing::{get, post, put, delete},
     Router, Json, http::StatusCode,
 };
-use tower_http::services::ServeDir;
 use serde::{Deserialize, Serialize};
 use anyhow::{Result, Context};
 use tower_http::trace::TraceLayer;
@@ -16,6 +15,7 @@ use tracing::info;
 
 use crate::fs;
 use crate::config::AppConfig;
+use crate::embedded::static_handler;
 
 // Define API types
 #[derive(Debug, Serialize)]
@@ -139,9 +139,10 @@ pub async fn start_server(base_dir: PathBuf, custom_config_path: Option<PathBuf>
         .route("/categories", get(list_categories));
     
     // Combine API routes with static files
+    // Use embedded static files instead of physical directory
     let app = Router::new()
         .nest("/api", api_routes)
-        .fallback_service(ServeDir::new("static"))
+        .fallback(static_handler)
         .layer(TraceLayer::new_for_http())
         .with_state(app_state.clone());
     

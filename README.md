@@ -19,6 +19,7 @@ A beautiful, web-based tool for creating, editing, and organizing markdown notes
 - 🔗 Easy navigation between linked notes
 - 📄 YAML frontmatter support
 - 🧩 Customizable configuration
+- 📦 Embedded web assets - run from any directory
 
 ## Getting Started
 
@@ -35,6 +36,8 @@ The simplest way to install mdlib is through cargo:
 ```bash
 cargo install mdlib
 ```
+
+Once installed, you can run `mdlib` from any directory to serve that directory's markdown files.
 
 #### Building from source
 
@@ -81,6 +84,9 @@ mdlib --config
 
 # Create a default config file
 mdlib --config create
+
+# List all embedded static files (for debugging)
+mdlib --list-embedded
 ```
 
 ## Keyboard Shortcuts
@@ -100,7 +106,8 @@ mdlib --config create
   - `fs.rs`: File system operations
   - `server.rs`: Web server and API endpoints
   - `config.rs`: Configuration management
-- `static/`: Static web files
+  - `embedded.rs`: Embedded static assets handler
+- `static/`: Static web files (embedded into the binary at compile time)
   - `index.html`: Main HTML page
   - `css/`: Stylesheets
   - `js/`: JavaScript files

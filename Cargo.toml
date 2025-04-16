@@ -27,3 +27,5 @@ clap = { version = "4.3", features = ["derive"] }
 walkdir = "2.3.3"
 config = "0.13.3"
 dirs = "5.0"
+rust-embed = "6.8.1" # For embedding static files into the binary
+mime_guess = "2.0.4" # For guessing MIME types
