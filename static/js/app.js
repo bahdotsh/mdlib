@@ -40,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addCategoryBtn = document.getElementById('add-category-btn');
     const newCategoryBtn = document.getElementById('new-category-btn');
     const categoryForm = document.getElementById('category-form');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebar = document.getElementById('sidebar');
 
     // State
     let currentFile = null;
@@ -49,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let autoSaveTimeout = null;
     let allTags = new Set();
     let categories = [];
+    let isMobile = window.innerWidth < 768;
     
     // Initialize the application
     init();
@@ -80,6 +83,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Configure marked renderer
         configureMarked();
+        
+        // Check screen size and set up responsive behavior
+        checkScreenSize();
+        window.addEventListener('resize', debounce(checkScreenSize, 100));
+        
+        // Create toast container
+        createToastContainer();
     }
 
     // Configure marked for rendering markdown
@@ -126,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentFile) {
                 showAddTagsModal(currentFile);
             } else {
-                alert('No file is currently open.');
+                showToast('No file is currently open.', 'error');
             }
         });
         
@@ -199,11 +209,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!addTagsModal.classList.contains('hidden')) {
                     hideAddTagsModal();
                 }
-                if (!categoryForm.classList.contains('hidden')) {
-                    hideCategoryForm();
-                }
             }
         });
+        
+        // Sidebar toggle for mobile
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', toggleSidebar);
+        }
+        
+        // Close sidebar when clicking on the content area in mobile view
+        document.addEventListener('click', (e) => {
+            if (isMobile && 
+                sidebar.classList.contains('active') && 
+                !sidebar.contains(e.target) && 
+                e.target !== sidebarToggle) {
+                toggleSidebar();
+            }
+        });
+    }
+
+    // Check screen size and set up responsive behavior
+    function checkScreenSize() {
+        isMobile = window.innerWidth < 768;
+        
+        if (isMobile) {
+            sidebarToggle.classList.remove('hidden');
+        } else {
+            sidebarToggle.classList.add('hidden');
+            sidebar.classList.remove('active');
+        }
+    }
+    
+    // Toggle sidebar for mobile view
+    function toggleSidebar() {
+        sidebar.classList.toggle('active');
+    }
+    
+    // Create toast container
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
     }
 
     // Show new note modal
@@ -290,131 +336,263 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // Display files in the sidebar
+    // Display files in the file list
     function displayFiles(files) {
+        // Clear the existing file list
+        fileList.innerHTML = '';
+        
         if (files.length === 0) {
-            fileList.innerHTML = '<li class="text-gray-500 text-sm italic">No markdown files found</li>';
+            // Display a message if there are no files
+            const listItem = document.createElement('li');
+            listItem.className = 'text-gray-500 text-sm italic';
+            listItem.textContent = 'No notes found';
+            fileList.appendChild(listItem);
             return;
         }
         
-        fileList.innerHTML = '';
-        
-        // Collect all tags
-        allTags = new Set();
-        
-        files.forEach(file => {
-            const li = document.createElement('li');
-            li.className = 'py-1 px-2 rounded hover:bg-gray-100 cursor-pointer flex items-center justify-between';
+        // Process and sort files
+        const processedFiles = files.map(file => {
+            // Extract just the file name without path and extension
+            let fileName = file.path.split('/').pop().replace('.md', '');
             
-            // Create filename container
-            const filenameContainer = document.createElement('span');
-            filenameContainer.textContent = file.name;
-            filenameContainer.className = 'truncate';
-            li.appendChild(filenameContainer);
-            
-            // Create actions container
-            const actionsContainer = document.createElement('div');
-            actionsContainer.className = 'flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity';
-            
-            // Add tags button
-            const tagButton = document.createElement('button');
-            tagButton.className = 'text-gray-500 hover:text-indigo-600 p-1 rounded';
-            tagButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-            `;
-            tagButton.title = 'Add Tags';
-            tagButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showAddTagsModal(file.path);
-            });
-            
-            // Add delete button
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'text-gray-500 hover:text-red-600 p-1 rounded';
-            deleteButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            `;
-            deleteButton.title = 'Delete Note';
-            deleteButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deleteFile(file.path);
-            });
-            
-            actionsContainer.appendChild(tagButton);
-            actionsContainer.appendChild(deleteButton);
-            li.appendChild(actionsContainer);
-            
-            // Add hover effect
-            li.addEventListener('mouseenter', () => {
-                actionsContainer.classList.remove('opacity-0');
-                actionsContainer.classList.add('opacity-100');
-            });
-            
-            li.addEventListener('mouseleave', () => {
-                actionsContainer.classList.remove('opacity-100');
-                actionsContainer.classList.add('opacity-0');
-            });
-            
-            // Set data attributes
-            li.setAttribute('data-path', file.path);
-            
-            // Add click handler for the whole item
-            li.addEventListener('click', () => loadFile(file.path));
-            
-            // Add tags display if file has tags
-            if (file.tags && file.tags.length > 0) {
-                const tagsContainer = document.createElement('div');
-                tagsContainer.className = 'flex flex-wrap gap-1 mt-1';
-                
-                file.tags.forEach(tag => {
-                    allTags.add(tag);
-                    
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded group relative';
-                    
-                    // Create tag text wrapper
-                    const tagText = document.createElement('span');
-                    tagText.textContent = tag;
-                    tagSpan.appendChild(tagText);
-                    
-                    // Create delete button for tag
-                    const tagDeleteBtn = document.createElement('button');
-                    tagDeleteBtn.className = 'ml-1 text-indigo-400 hover:text-red-500 hidden group-hover:inline-block';
-                    tagDeleteBtn.innerHTML = '×';
-                    tagDeleteBtn.title = 'Remove tag';
-                    tagDeleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        removeTagFromFile(file.path, tag);
-                    });
-                    tagSpan.appendChild(tagDeleteBtn);
-                    
-                    tagsContainer.appendChild(tagSpan);
-                });
-                
-                li.appendChild(tagsContainer);
+            // Extract category if it exists in the path
+            let category = '';
+            const pathParts = file.path.split('/');
+            if (pathParts.length > 2) {
+                category = pathParts[pathParts.length - 2];
             }
             
-            // Add category if file has a category
-            if (file.category) {
-                const categoryDiv = document.createElement('div');
-                categoryDiv.className = 'text-xs text-gray-500 mt-1';
-                categoryDiv.innerHTML = `<span class="inline-block mr-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                </span>${file.category}`;
-                li.appendChild(categoryDiv);
-            }
-            
-            fileList.appendChild(li);
+            return {
+                path: file.path,
+                name: fileName,
+                category: category,
+                tags: file.tags || []
+            };
         });
         
-        // Update tags display
-        updateTagsDisplay();
+        // Sort files alphabetically by name and secondarily by category
+        processedFiles.sort((a, b) => {
+            // First sort by category if it exists
+            if (a.category && b.category && a.category !== b.category) {
+                return a.category.localeCompare(b.category);
+            }
+            // Then sort by name
+            return a.name.localeCompare(b.name);
+        });
+        
+        // Create a document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        // Track categories for visual separation
+        let lastCategory = null;
+        
+        // Add each file to the list
+        processedFiles.forEach(file => {
+            // If category is changing, add a visual separator
+            if (file.category && file.category !== lastCategory) {
+                lastCategory = file.category;
+                
+                // Only add a separator if this isn't the first category
+                if (fragment.childElementCount > 0) {
+                    const separator = document.createElement('li');
+                    separator.className = 'py-1 my-1';
+                    separator.style.borderBottom = '1px solid var(--border-color)';
+                    fragment.appendChild(separator);
+                }
+            }
+            
+            const listItem = document.createElement('li');
+            listItem.setAttribute('data-path', file.path);
+            listItem.style.justifyContent = 'flex-start';
+            listItem.style.textAlign = 'left';
+            
+            // Create inner structure for better styling
+            const noteIcon = document.createElement('span');
+            noteIcon.className = 'note-icon flex-shrink-0 mr-2';
+            noteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>`;
+            
+            const noteTitle = document.createElement('span');
+            noteTitle.className = 'note-title text-left';
+            noteTitle.textContent = file.name;
+            noteTitle.title = file.name; // Add tooltip for long names
+            noteTitle.style.flex = '1';
+            noteTitle.style.minWidth = '0';
+            
+            // Add tags indicator if the file has tags
+            if (file.tags && file.tags.length > 0) {
+                const tagsIndicator = document.createElement('span');
+                tagsIndicator.className = 'tags-indicator ml-1 text-xs text-indigo-500 flex-shrink-0';
+                tagsIndicator.textContent = `(${file.tags.length})`;
+                tagsIndicator.title = `Tags: ${file.tags.join(', ')}`;
+                noteTitle.appendChild(tagsIndicator);
+            }
+            
+            listItem.appendChild(noteIcon);
+            listItem.appendChild(noteTitle);
+            
+            // Add click event to load the file
+            listItem.addEventListener('click', () => {
+                // Remove active class from all list items
+                document.querySelectorAll('#file-list li').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Add active class to the clicked item
+                listItem.classList.add('active');
+                
+                // Load the file
+                loadFile(file.path);
+                
+                // Close sidebar on mobile after selecting a note
+                if (isMobile && sidebar.classList.contains('active')) {
+                    toggleSidebar();
+                }
+            });
+            
+            // Add right-click context menu for file operations
+            listItem.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                showContextMenu(e, file.path);
+            });
+            
+            // Add to fragment
+            fragment.appendChild(listItem);
+        });
+        
+        // Append all items at once
+        fileList.appendChild(fragment);
+        
+        // Virtual scrolling for large number of notes
+        if (processedFiles.length > 100) {
+            enableVirtualScrolling();
+        }
+    }
+
+    // Enable virtual scrolling for large number of notes
+    function enableVirtualScrolling() {
+        const fileListContainer = fileList.parentElement;
+        const items = Array.from(fileList.children);
+        const itemHeight = items[0]?.offsetHeight || 30; // Default fallback height
+        
+        // Keep track of which items are rendered
+        let renderedItems = new Set();
+        let visibleRange = { start: 0, end: 0 };
+        
+        // Function to update which items are visible
+        function updateVisibleItems() {
+            const containerTop = fileListContainer.scrollTop;
+            const containerHeight = fileListContainer.offsetHeight;
+            
+            // Calculate which items should be visible (with buffer)
+            const bufferItems = 10; // Items to render before/after visible area
+            const startIndex = Math.max(0, Math.floor(containerTop / itemHeight) - bufferItems);
+            const endIndex = Math.min(items.length - 1, Math.ceil((containerTop + containerHeight) / itemHeight) + bufferItems);
+            
+            // If range hasn't changed, don't update DOM
+            if (visibleRange.start === startIndex && visibleRange.end === endIndex) {
+                return;
+            }
+            
+            visibleRange = { start: startIndex, end: endIndex };
+            
+            // Hide items that are now outside the visible range
+            renderedItems.forEach(index => {
+                if (index < startIndex || index > endIndex) {
+                    items[index].style.display = 'none';
+                    renderedItems.delete(index);
+                }
+            });
+            
+            // Show items that are now inside the visible range
+            for (let i = startIndex; i <= endIndex; i++) {
+                if (!renderedItems.has(i) && items[i]) {
+                    items[i].style.display = '';
+                    renderedItems.add(i);
+                }
+            }
+        }
+        
+        // Initial update and add scroll listener
+        updateVisibleItems();
+        fileListContainer.addEventListener('scroll', updateVisibleItems);
+    }
+
+    // Show context menu for a file
+    function showContextMenu(e, filePath) {
+        // Remove any existing context menu
+        const existingMenu = document.getElementById('context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        // Create context menu
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'context-menu';
+        contextMenu.className = 'absolute bg-white shadow-lg rounded-lg overflow-hidden z-50 py-1';
+        contextMenu.style.left = `${e.pageX}px`;
+        contextMenu.style.top = `${e.pageY}px`;
+        
+        // Rename option
+        const renameOption = document.createElement('div');
+        renameOption.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm';
+        renameOption.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            Rename
+        `;
+        renameOption.addEventListener('click', () => {
+            const newName = prompt('Enter new name:', getFilename(filePath).replace('.md', ''));
+            if (newName) {
+                // TODO: Implement rename functionality
+                closeContextMenu();
+            }
+        });
+        
+        // Delete option
+        const deleteOption = document.createElement('div');
+        deleteOption.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-red-600';
+        deleteOption.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+        `;
+        deleteOption.addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete this note?')) {
+                deleteFile(filePath);
+            }
+            closeContextMenu();
+        });
+        
+        contextMenu.appendChild(renameOption);
+        contextMenu.appendChild(deleteOption);
+        document.body.appendChild(contextMenu);
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', closeContextMenu);
+        
+        // Close menu when scrolling
+        document.addEventListener('scroll', closeContextMenu);
+        
+        // Prevent menu from going off-screen
+        setTimeout(() => {
+            const menuRect = contextMenu.getBoundingClientRect();
+            if (menuRect.right > window.innerWidth) {
+                contextMenu.style.left = `${window.innerWidth - menuRect.width - 5}px`;
+            }
+            if (menuRect.bottom > window.innerHeight) {
+                contextMenu.style.top = `${window.innerHeight - menuRect.height - 5}px`;
+            }
+        }, 0);
+        
+        function closeContextMenu() {
+            contextMenu.remove();
+            document.removeEventListener('click', closeContextMenu);
+            document.removeEventListener('scroll', closeContextMenu);
+        }
     }
 
     // Load a file into the editor
@@ -827,77 +1005,100 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update categories display
     function updateCategoriesDisplay() {
+        categoryList.innerHTML = '';
+        
         if (categories.length === 0) {
-            categoryList.innerHTML = '<li class="category-empty">No categories found</li>';
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'category-empty';
+            emptyItem.textContent = 'No categories';
+            categoryList.appendChild(emptyItem);
             return;
         }
         
-        categoryList.innerHTML = '';
+        // Sort categories alphabetically
+        categories.sort((a, b) => a.localeCompare(b));
         
-        // Add "All" option
-        const allItem = document.createElement('li');
-        allItem.textContent = 'All Notes';
-        allItem.className = 'category-item active';
-        allItem.addEventListener('click', () => {
+        const fragment = document.createDocumentFragment();
+        
+        // Add "All Notes" option
+        const allNotesItem = document.createElement('li');
+        allNotesItem.className = 'category-item';
+        allNotesItem.style.justifyContent = 'flex-start';
+        allNotesItem.style.textAlign = 'left';
+        allNotesItem.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span class="category-name text-left" style="min-width: 0; flex: 1;">All Notes</span>
+        `;
+        
+        allNotesItem.addEventListener('click', () => {
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            allNotesItem.classList.add('active');
             loadFiles();
-            // Update active state
-            categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
-            allItem.classList.add('active');
         });
-        categoryList.appendChild(allItem);
+        
+        fragment.appendChild(allNotesItem);
         
         // Add each category
         categories.forEach(category => {
-            const li = document.createElement('li');
-            li.className = 'category-item flex justify-between items-center';
+            const listItem = document.createElement('li');
+            listItem.className = 'category-item';
+            listItem.setAttribute('data-category', category);
+            listItem.style.justifyContent = 'flex-start';
+            listItem.style.textAlign = 'left';
             
-            // Category name and icon
-            const categoryLabel = document.createElement('span');
-            categoryLabel.className = 'flex-grow flex items-center';
-            categoryLabel.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            listItem.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
-                <span class="category-name">${category}</span>
+                <span class="category-name text-left" style="min-width: 0; flex: 1;" title="${category}">${category}</span>
+                <button class="category-delete-btn flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
             `;
-            li.appendChild(categoryLabel);
             
-            // Delete category button
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'category-delete-btn text-gray-400 hover:text-red-500 hidden group-hover:block';
-            deleteBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-            `;
-            deleteBtn.title = 'Delete category';
+            // Add click event to filter by category
+            listItem.addEventListener('click', (e) => {
+                // Don't trigger if the delete button was clicked
+                if (e.target.closest('.category-delete-btn')) {
+                    return;
+                }
+                
+                document.querySelectorAll('.category-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                listItem.classList.add('active');
+                
+                searchByCategory(category);
+            });
+            
+            // Add click event to delete button
+            const deleteBtn = listItem.querySelector('.category-delete-btn');
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                deleteCategory(category);
-            });
-            li.appendChild(deleteBtn);
-            
-            // Show delete button on hover
-            li.addEventListener('mouseenter', () => {
-                deleteBtn.classList.remove('hidden');
-            });
-            li.addEventListener('mouseleave', () => {
-                deleteBtn.classList.add('hidden');
+                if (confirm(`Are you sure you want to delete the category "${category}"? This will not delete the notes in this category.`)) {
+                    deleteCategory(category);
+                }
             });
             
-            // Filter by category when clicked
-            li.addEventListener('click', () => {
-                searchByCategory(category);
-                // Update active state
-                categoryList.querySelectorAll('li').forEach(li => li.classList.remove('active'));
-                li.classList.add('active');
-            });
-            
-            categoryList.appendChild(li);
+            fragment.appendChild(listItem);
         });
         
-        // Update category dropdown in new note modal
+        categoryList.appendChild(fragment);
+        
+        // Also update the category dropdown in the new note modal
+        updateCategoryDropdown();
+    }
+    
+    // Update the category dropdown in the new note modal
+    function updateCategoryDropdown() {
         newNoteCategory.innerHTML = '<option value="">No Category</option>';
+        
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category;
@@ -1138,24 +1339,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Show a toast message
+    // Show toast notification
     function showToast(message, type = 'success') {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) return;
+        
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-5 right-5 p-3 rounded-lg shadow-lg transition-opacity duration-500 z-50 ${
-            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`;
+        toast.className = `toast toast-${type}`;
         toast.textContent = message;
         
-        document.body.appendChild(toast);
+        toastContainer.appendChild(toast);
         
-        // Fade in
+        // Trigger reflow to enable CSS transition
+        toast.offsetHeight;
+        
+        // Show toast
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+        
+        // Remove toast after 3 seconds
         setTimeout(() => {
-            toast.classList.add('opacity-0');
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
             
-            // Remove after fade out
+            // Remove from DOM after fade out
             setTimeout(() => {
                 toast.remove();
-            }, 500);
+            }, 300);
         }, 3000);
     }
 }); 

@@ -19,9 +19,14 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.3/dist/purify.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans antialiased">
-    <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg">
+    <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg fixed top-0 w-full z-30">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center">
+                <button id="sidebar-toggle" class="sidebar-toggle mr-3 p-1 text-white hover:text-indigo-200 transition-colors duration-200 rounded-full hover:bg-white hover:bg-opacity-10 hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
                 <h1 class="text-2xl font-bold">mdlib</h1>
             </div>
             <div class="flex items-center space-x-4">
@@ -51,9 +56,9 @@
         </div>
     </header>
 
-    <main class="flex-grow flex">
+    <main class="flex-grow flex pt-16"> <!-- Add padding-top to accommodate fixed header -->
         <!-- Sidebar - File Browser -->
-        <aside id="sidebar" class="w-72 bg-white shadow-md overflow-auto border-r border-gray-200">
+        <aside id="sidebar" class="bg-white shadow-md border-r border-gray-200">
             <div class="p-4">
                 <!-- Categories Section -->
                 <div class="mb-6">
@@ -85,11 +90,13 @@
                             Add
                         </button>
                     </div>
-                    <ul id="category-list" class="mt-2">
-                        <li class="category-empty">
-                            Loading categories...
-                        </li>
-                    </ul>
+                    <div class="category-list-container">
+                        <ul id="category-list" class="mt-2">
+                            <li class="category-empty">
+                                Loading categories...
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
                 <!-- Tags Section -->
@@ -109,22 +116,26 @@
                 </div>
 
                 <!-- Notes Section -->
-                <h2 class="text-lg font-semibold mb-3 text-gray-700 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Notes
-                </h2>
-                <ul id="file-list" class="space-y-1 mt-2">
-                    <!-- Files will be populated here -->
-                    <li class="text-gray-500 text-sm italic flex items-center">
-                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <div class="notes-section">
+                    <h2 class="text-lg font-semibold mb-3 text-gray-700 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        Loading notes...
-                    </li>
-                </ul>
+                        Notes
+                    </h2>
+                    <div class="file-list-container">
+                        <ul id="file-list" class="mt-2">
+                            <!-- Files will be populated here -->
+                            <li class="text-gray-500 text-sm italic flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Loading notes...
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </aside>
 
@@ -152,7 +163,7 @@
                 <!-- Toolbar -->
                 <div id="toolbar" class="bg-white border-b border-gray-200 p-3 flex items-center shadow-sm">
                     <div id="file-info" class="flex items-center">
-                        <span id="current-filename" class="font-medium text-gray-700 mr-2"></span>
+                        <span id="current-filename" class="font-medium text-gray-700 mr-2 truncate max-w-md"></span>
                     </div>
                     
                     <div class="ml-auto flex items-center space-x-2">
