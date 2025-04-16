@@ -13,7 +13,7 @@
     --bg-color: #f9fafb;
     --card-bg: #ffffff;
     --transition-speed: 0.2s;
-    --sidebar-width: 300px;
+    --sidebar-width: 300px; /* Fixed sidebar width */
 }
 
 body {
@@ -325,14 +325,15 @@ body {
 
 /* Improved Sidebar Styles */
 #sidebar {
-    width: var(--sidebar-width);
+    width: 300px; /* Fixed width value */
     height: calc(100vh - 4rem); /* Adjust based on header height */
     position: sticky;
     top: 4rem;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: width 0.3s ease;
+    transition: none; /* Remove width transition */
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
 }
 
 #sidebar > div {
@@ -351,8 +352,8 @@ body {
 }
 
 #file-list li {
-    display: flex;
-    align-items: center;
+    display: flex !important;
+    align-items: center !important;
     padding: 0.5rem 0.75rem;
     border-radius: 0.375rem;
     cursor: pointer;
@@ -361,24 +362,29 @@ body {
     transition: background-color var(--transition-speed);
     position: relative;
     color: var(--text-color);
-    text-align: left;
-    justify-content: flex-start;
+    text-align: left !important;
+    justify-content: flex-start !important;
 }
 
 #file-list li .note-icon {
-    margin-right: 0.5rem;
+    margin-right: 0.5rem !important;
     flex-shrink: 0;
-    display: inline-flex;
+    width: 20px;
+    text-align: center;
+    display: inline-flex !important;
+    justify-content: center;
     align-items: center;
 }
 
 #file-list li .note-title {
-    flex: 1;
+    flex: 1 !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-align: left;
-    justify-content: flex-start;
+    padding-left: 2px;
+    display: inline-block;
+    text-align: left !important;
+    min-width: 0 !important;
 }
 
 /* Category List Improvements */
@@ -467,14 +473,10 @@ body {
 
 /* Responsive sidebar handling */
 @media (max-width: 768px) {
-    :root {
-        --sidebar-width: 100%;
-    }
-    
     #sidebar {
         position: fixed;
         z-index: 40;
-        width: 100%;
+        width: 300px; /* Keep the same fixed width */
         height: 100vh;
         top: 0;
         left: 0;
@@ -491,17 +493,13 @@ body {
     }
 }
 
-/* Breakpoint to adjust sidebar width for better readability */
+/* Remove breakpoint width adjustments */
 @media (min-width: 769px) and (max-width: 1280px) {
-    :root {
-        --sidebar-width: 280px;
-    }
+    /* Remove the root variable override */
 }
 
 @media (min-width: 1281px) {
-    :root {
-        --sidebar-width: 320px;
-    }
+    /* Remove the root variable override */
 }
 
 /* Fix for long context menu items */
