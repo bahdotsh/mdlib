@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setViewMode('preview');
                     
                     // Add file name to document title
-                    document.title = `${getFilename(path)} - mdlib`;
+                    document.title = `${getFilename(path)} - mdlib Personal Wiki`;
                 } else {
                     console.error('Error loading file:', data.message);
                     alert(`Error loading file: ${data.message}`);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>mdlib - Markdown Note-Taking</title>
+    <title>mdlib</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
     <!-- Load highlight.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
@@ -23,7 +23,6 @@
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center">
                 <h1 class="text-2xl font-bold">mdlib</h1>
-                <span class="ml-2 text-indigo-100 opacity-75">Markdown Library</span>
             </div>
             <div class="flex items-center space-x-4">
                 <div class="relative">
@@ -114,7 +113,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Your Notes
+                    Notes
                 </h2>
                 <ul id="file-list" class="space-y-1 mt-2">
                     <!-- Files will be populated here -->
@@ -138,8 +137,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-700 mb-2">No Note Selected</h2>
-                <p class="text-gray-500 max-w-md mb-6">Select a note from the sidebar to view it, or create a new note to get started.</p>
+                <h2 class="text-2xl font-bold text-gray-700 mb-2">No Notes Selected</h2>
+                <p class="text-gray-500 max-w-md mb-6">Select a note from the sidebar to view it, or create a new note to build your personal wiki.</p>
                 <button id="btn-empty-new-note" class="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-indigo-700 transition-colors duration-200 shadow flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />

@@ -140,6 +140,14 @@ pub async fn start_server(base_dir: PathBuf) -> Result<()> {
             .context("Invalid server address")?
     };
     
+    // Print a clear message showing the URL for users
+    println!("\n=======================================================");
+    println!("🚀 mdlib server is running at: http://{}", addr);
+    println!("=======================================================");
+    println!("📝 Open this URL in your browser to access your Personal Wiki");
+    println!("💡 Press Ctrl+C to stop the server");
+    println!("=======================================================\n");
+    
     info!("Starting server on {}", addr);
     
     // Start the server
