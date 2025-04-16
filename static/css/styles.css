@@ -230,6 +230,31 @@ body {
     border-color: var(--border-color) !important;
 }
 
+/* Fix for input fields in dark mode */
+.dark-mode input[type="text"],
+.dark-mode textarea,
+.dark-mode #search-input {
+    background-color: #2d3748;
+    color: #e2e8f0;
+    border-color: var(--border-color);
+    caret-color: #e2e8f0; /* This ensures cursor visibility */
+}
+
+.dark-mode #new-note-name::placeholder,
+.dark-mode #search-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Make Cancel button more visible in dark mode */
+.dark-mode #btn-modal-cancel {
+    background-color: #374151;
+    color: #e2e8f0;
+}
+
+.dark-mode #btn-modal-cancel:hover {
+    background-color: #4b5563;
+}
+
 .dark-mode #editor {
     background-color: #1a202c;
     color: var(--text-color);
@@ -383,12 +408,27 @@ body {
     transition: border-color 0.15s ease;
     font-size: 0.9375rem;
     line-height: 1.6;
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Split View Styles */
 .split-view #editor-pane,
 .split-view #preview-pane {
     flex: 1;
+}
+
+.split-view #editor-pane {
+    padding: 0;
+}
+
+.split-view #editor {
+    border-radius: 0;
+    border-left: none;
+    border-top: none;
+    border-bottom: none;
 }
 
 /* Responsive Design */

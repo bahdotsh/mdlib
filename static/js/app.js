@@ -40,8 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialization
     function init() {
-        // Ensure highlight.js is loaded
-        if (typeof hljs === 'undefined') {
+        // Configure highlight.js
+        if (typeof hljs !== 'undefined') {
+            // Register commonly used languages if we're using the full bundle
+            hljs.highlightAll();
+            console.log('highlight.js loaded successfully');
+        } else {
             console.error('highlight.js is not loaded. Syntax highlighting will not work.');
         }
         
@@ -73,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 try {
                     if (lang && hljs.getLanguage(lang)) {
-                        return hljs.highlight(code, { language: lang }).value;
+                        return hljs.highlight(lang, code).value;
                     }
                     return hljs.highlightAuto(code).value;
                 } catch (e) {
@@ -186,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnPreviewOnly.classList.remove('hidden');
             btnSave.classList.remove('hidden');
             document.getElementById('content').classList.remove('split-view');
+            setTimeout(() => editor.focus(), 0);
         } else if (mode === 'split') {
             editorPane.classList.remove('hidden');
             previewPane.classList.remove('hidden');
@@ -196,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSave.classList.remove('hidden');
             document.getElementById('content').classList.add('split-view');
             updatePreview();
+            setTimeout(() => editor.focus(), 0);
         }
     }
 
@@ -305,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply syntax highlighting to code blocks
             if (typeof hljs !== 'undefined') {
                 preview.querySelectorAll('pre code').forEach(block => {
-                    hljs.highlightElement(block);
+                    hljs.highlightBlock(block);
                 });
             }
         } catch (error) {
@@ -536,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Debounce function to limit how often a function is called
     function debounce(func, delay) {
+        let timeout;
         return function executedFunction(...args) {
             const later = () => {
                 clearTimeout(timeout);
@@ -543,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             
             clearTimeout(timeout);
-            const timeout = setTimeout(later, delay);
+            timeout = setTimeout(later, delay);
         };
     }
 }); 

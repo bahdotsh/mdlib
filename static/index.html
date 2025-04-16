@@ -5,19 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mdlib - Markdown Note-Taking</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
-    <!-- Load highlight.js CSS first -->
+    <!-- Load highlight.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="css/styles.css">
     
     <!-- Load JavaScript libraries in correct order -->
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
-    <!-- Ensure language support for common languages -->
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/languages/javascript.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/languages/python.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/languages/bash.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/languages/markdown.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/languages/rust.min.js"></script>
+    <!-- Use a complete bundle that includes all languages we need instead of individual language files -->
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/highlight.min.js"></script>
     
     <!-- Load marked after highlight.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
@@ -183,7 +178,7 @@
                 <!-- Content Area -->
                 <div id="content" class="flex-grow flex">
                     <!-- Editor Pane (hidden initially) -->
-                    <div id="editor-pane" class="hidden overflow-auto p-4">
+                    <div id="editor-pane" class="hidden overflow-auto flex-1">
                         <textarea id="editor" class="w-full h-full p-4 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" placeholder="Start writing your markdown here..."></textarea>
                     </div>
 
