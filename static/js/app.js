@@ -193,6 +193,26 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         
+        // Handle clicks on links in the preview pane (wiki-linking)
+        preview.addEventListener('click', e => {
+            // Check if the clicked element is a link
+            if (e.target.tagName === 'A') {
+                e.preventDefault();
+                const href = e.target.getAttribute('href');
+                
+                // Only handle .md links or links without extension (assumed to be markdown)
+                if (href && (href.endsWith('.md') || !href.includes('.'))) {
+                    // Remove leading slash if present for consistency
+                    const cleanHref = href.startsWith('/') ? href.substring(1) : href;
+                    console.log('Loading markdown link:', cleanHref);
+                    loadFile(cleanHref);
+                } else {
+                    // For external links, open in a new tab
+                    window.open(href, '_blank');
+                }
+            }
+        });
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', handleKeyboardShortcuts);
         
